@@ -5,7 +5,6 @@
 
 'use strict';
 import { ITree, ContextMenuEvent } from 'vs/base/parts/tree/browser/tree';
-import treedefaults = require('vs/base/parts/tree/browser/treeDefaults');
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
@@ -17,23 +16,35 @@ import { ConnectionProfile } from 'sql/parts/connection/common/connectionProfile
 import { ServerTreeActionProvider } from 'sql/parts/objectExplorer/viewlet/serverTreeActionProvider';
 import { ObjectExplorerActionsContext } from 'sql/parts/objectExplorer/viewlet/objectExplorerActions';
 import { TreeNode } from 'sql/parts/objectExplorer/common/treeNode';
-import { OpenMode } from 'vs/base/parts/tree/browser/treeDefaults';
+import { OpenMode, DefaultController, ClickBehavior } from 'vs/base/parts/tree/browser/treeDefaults';
+import { IMenu, IMenuService, MenuId } from 'vs/platform/actions/common/actions';
+import { WorkbenchTree } from 'vs/platform/list/browser/listService';
+import { IDisposable, dispose } from 'vs/base/common/lifecycle';
+import { fillInActions } from 'vs/platform/actions/browser/menuItemActionItem';
+import { IAction } from 'vs/base/common/actions';
+import { TPromise } from 'vs/base/common/winjs.base';
 
 /**
  * Extends the tree controller to handle clicks on the tree elements
  */
-export class ServerTreeController extends treedefaults.DefaultController {
+export class ServerTreeController extends DefaultController implements IDisposable {
+
+	private contributedContextMenu: IMenu;
+	private toDispose: IDisposable[];
 
 	constructor(private actionProvider: ServerTreeActionProvider,
 		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
 		@IContextMenuService private contextMenuService: IContextMenuService,
 		@ITelemetryService private telemetryService: ITelemetryService,
+		@IMenuService private menuService: IMenuService,
 		@IKeybindingService private keybindingService: IKeybindingService
 	) {
 		super({
-			clickBehavior: treedefaults.ClickBehavior.ON_MOUSE_DOWN,
+			clickBehavior: ClickBehavior.ON_MOUSE_DOWN,
 			openMode: OpenMode.SINGLE_CLICK
 		});
+
+		this.toDispose = [];
 	}
 
 	public onClick(tree: ITree, element: any, event: IMouseEvent): boolean {
@@ -60,7 +71,7 @@ export class ServerTreeController extends treedefaults.DefaultController {
 	/**
 	 * Return actions in the context menu
 	 */
-	public onContextMenu(tree: ITree, element: any, event: ContextMenuEvent): boolean {
+	public onContextMenu(tree: WorkbenchTree, element: any, event: ContextMenuEvent): boolean {
 		if (event.target && event.target.tagName && event.target.tagName.toLowerCase() === 'input') {
 			return false;
 		}
@@ -96,10 +107,18 @@ export class ServerTreeController extends treedefaults.DefaultController {
 			actionContext = element;
 		}
 
+		if (!this.contributedContextMenu) {
+			this.contributedContextMenu = this.menuService.createMenu(MenuId.ObjectExplorerContext, tree.contextKeyService);
+			this.toDispose.push(this.contributedContextMenu);
+		}
+
 		let anchor = { x: event.posx + 1, y: event.posy };
 		this.contextMenuService.showContextMenu({
 			getAnchor: () => anchor,
-			getActions: () => this.actionProvider.getActions(tree, element),
+			getActions: () => this.actionProvider.getActions(tree, element).then(actions => {
+				fillInActions(this.contributedContextMenu, { shouldForwardArgs: true }, actions, this.contextMenuService);
+				return actions;
+			}),
 			getKeyBinding: (action) => this.keybindingService.lookupKeybinding(action.id),
 			onHide: (wasCancelled?: boolean) => {
 				if (wasCancelled) {
@@ -110,5 +129,9 @@ export class ServerTreeController extends treedefaults.DefaultController {
 		});
 
 		return true;
+	}
+
+	public dispose(): void {
+		this.toDispose = dispose(this.toDispose);
 	}
 }
