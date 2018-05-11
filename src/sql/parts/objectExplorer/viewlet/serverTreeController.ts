@@ -23,6 +23,7 @@ import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { fillInActions } from 'vs/platform/actions/browser/menuItemActionItem';
 import { IAction } from 'vs/base/common/actions';
 import { TPromise } from 'vs/base/common/winjs.base';
+import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 
 /**
  * Extends the tree controller to handle clicks on the tree elements
@@ -35,6 +36,7 @@ export class ServerTreeController extends DefaultController implements IDisposab
 	constructor(private actionProvider: ServerTreeActionProvider,
 		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
 		@IContextMenuService private contextMenuService: IContextMenuService,
+		@IContextKeyService private contextKeyService: IContextKeyService,
 		@ITelemetryService private telemetryService: ITelemetryService,
 		@IMenuService private menuService: IMenuService,
 		@IKeybindingService private keybindingService: IKeybindingService
@@ -71,7 +73,7 @@ export class ServerTreeController extends DefaultController implements IDisposab
 	/**
 	 * Return actions in the context menu
 	 */
-	public onContextMenu(tree: WorkbenchTree, element: any, event: ContextMenuEvent): boolean {
+	public onContextMenu(tree: ITree, element: any, event: ContextMenuEvent): boolean {
 		if (event.target && event.target.tagName && event.target.tagName.toLowerCase() === 'input') {
 			return false;
 		}
@@ -108,7 +110,8 @@ export class ServerTreeController extends DefaultController implements IDisposab
 		}
 
 		if (!this.contributedContextMenu) {
-			this.contributedContextMenu = this.menuService.createMenu(MenuId.ObjectExplorerContext, tree.contextKeyService);
+			const contextKeyService = this.contextKeyService.createScoped();
+			this.contributedContextMenu = this.menuService.createMenu(MenuId.ObjectExplorerContext, contextKeyService);
 			this.toDispose.push(this.contributedContextMenu);
 		}
 
