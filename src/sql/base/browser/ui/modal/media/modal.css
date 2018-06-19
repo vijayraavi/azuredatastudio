@@ -155,6 +155,10 @@
 	justify-content: flex-end;
 }
 
+.modal a.monaco-button.monaco-text-button {
+	line-height: normal;
+}
+
 .modal .footer-button a.monaco-button.monaco-text-button {
 	width: 100px;
 }
