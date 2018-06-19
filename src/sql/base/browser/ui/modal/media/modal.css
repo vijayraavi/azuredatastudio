@@ -13,6 +13,10 @@
 	z-index: 500;
 }
 
+.monaco-shell .statusbar {
+	z-index: 1000;
+}
+
 .monaco-shell .modal:not(.flyout-dialog) .modal-dialog {
 	margin: auto;
 	width: 640px;
@@ -34,7 +38,7 @@
 
 .monaco-shell .modal.flyout-dialog .modal-dialog {
 	margin: auto auto auto auto;
-	height: 100%;
+	height: calc(100% - 22px);
 	width: 500px;
 	right: 0;
 	position: absolute;
