@@ -13,7 +13,7 @@ import * as nls from 'vs/nls';
 
 import { ProfilerInput } from 'sql/parts/profiler/editor/profilerInput';
 import { ProfilerEditor } from 'sql/parts/profiler/editor/profilerEditor';
-import { PROFILER_SESSION_TEMPLATE_SETTINGS, IProfilerSessionTemplate } from 'sql/parts/profiler/service/interfaces';
+import { PROFILER_SESSION_TEMPLATE_SETTINGS, PROFILER_VIEW_TEMPLATE_SETTINGS, IProfilerSessionTemplate, IProfilerViewTemplate } from 'sql/parts/profiler/service/interfaces';
 
 const profilerDescriptor = new EditorDescriptor(
 	ProfilerEditor,
@@ -38,60 +38,107 @@ const profilerSessionTemplateSchema: IJSONSchema = {
 	default: <Array<IProfilerSessionTemplate>>[
 		{
 			name: 'Standard',
-			events: [
+			defaultView: 'Standard_view',
+			createStatements: [
 				{
-					name: 'Audit Login',
-					optionalColumns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'ClientProcessID', 'SPID', 'StartTime', 'BinaryData']
+					versions: ['2012'],
+					statement: ''
 				},
 				{
-					name: 'Audit Logout',
-					optionalColumns: ['ApplicationName', 'NTUserName', 'LoginName', 'CPU', 'Reads', 'Writes', 'Duration', 'ClientProcessID', 'SPID', 'StartTime', 'EndTime']
-				},
-				{
-					name: 'ExistingConnection',
-					optionalColumns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'Duration', 'ClientProcessID', 'SPID', 'StartTime', 'EndTime', 'BinaryData']
-				},
-				{
-					name: 'RPC:Completed',
-					optionalColumns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'CPU', 'Reads', 'Writes', 'Duration', 'ClientProcessID', 'SPID', 'StartTime', 'EndTime', 'BinaryData']
-				},
-				{
-					name: 'SQL:BatchCompleted',
-					optionalColumns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'CPU', 'Reads', 'Writes', 'Duration', 'ClientProcessID', 'SPID', 'StartTime', 'EndTime', 'BinaryData']
-				},
-				{
-					name: 'SQL:BatchStarting',
-					optionalColumns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'ClientProcessID', 'SPID', 'StartTime']
+					versions: ['Cloud'],
+					statement: ''
 				}
-			],
-			view: {
-				events: [
-					{
-						name: 'Audit Login',
-						columns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'ClientProcessID', 'SPID', 'StartTime']
-					},
-					{
-						name: 'Audit Logout',
-						columns: ['ApplicationName', 'NTUserName', 'LoginName', 'CPU', 'Reads', 'Writes', 'Duration', 'ClientProcessID', 'SPID', 'StartTime', 'EndTime']
-					},
-					{
-						name: 'ExistingConnection',
-						columns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'ClientProcessID', 'SPID', 'StartTime']
-					},
-					{
-						name: 'RPC:Completed',
-						columns: ['ApplicationName', 'NTUserName', 'LoginName', 'CPU', 'Reads', 'Writes', 'Duration', 'ClientProcessID', 'SPID', 'StartTime', 'EndTime', 'BinaryData']
-					},
-					{
-						name: 'SQL:BatchCompleted',
-						columns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'CPU', 'Reads', 'Writes', 'Duration', 'ClientProcessID', 'SPID', 'StartTime', 'EndTime', 'BinaryData']
-					},
-					{
-						name: 'SQL:BatchStarting',
-						columns: ['TextData', 'ApplicationName', 'NTUserName', 'LoginName', 'ClientProcessID', 'SPID', 'StartTime']
-					}
-				]
+			]
+		}
+	]
+};
+
+const profilerViewTemplateSchema: IJSONSchema = {
+	description: nls.localize('profiler.settings.viewTemplates', "Specifies view templates"),
+	type: 'array',
+	items: <IJSONSchema>{
+		type: 'object',
+		properties: {
+			name: {
+				type: 'string'
 			}
+		}
+	},
+	default: <Array<IProfilerViewTemplate>>[
+		{
+			name: 'Standard_view',
+			columns: [
+				{
+                    name: 'EventClass',
+                    width: '1',
+                    eventsMapped: ['name']
+                },
+                {
+					name: 'TextData',
+                    width: '1',
+                    eventsMapped: ['options_text', 'batch_text']
+                },
+                {
+					name: 'ApplicationName',
+                    width: '1',
+                    eventsMapped: ['client_app_name']
+				},
+                {
+					name: 'NTUserName',
+                    width: '1',
+                    eventsMapped: ['nt_username']
+                },
+                {
+					name: 'LoginName',
+                    width: '1',
+                    eventsMapped: ['server_principal_name']
+                },
+                {
+					name: 'ClientProcessID',
+                    width: '1',
+                    eventsMapped: ['client_pid']
+                },
+                {
+					name: 'SPID',
+                    width: '1',
+                    eventsMapped: ['session_id']
+                },
+                {
+					name: 'StartTime',
+                    width: '1',
+                    eventsMapped: ['timestamp']
+                },
+                {
+					name: 'CPU',
+                    width: '1',
+                    eventsMapped: ['cpu_time']
+                },
+                {
+					name: 'Reads',
+                    width: '1',
+                    eventsMapped: ['logical_reads']
+                },
+                {
+					name: 'Writes',
+                    width: '1',
+                    eventsMapped: ['writes']
+                },
+                {
+					name: 'Duration',
+                    width: '1',
+                    eventsMapped: ['duration']
+                },
+                {
+					name: 'EndTime',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'BinaryData',
+                    width: '1',
+                    eventsMapped: []
+                }
+			]
 		}
 	]
 };
@@ -101,7 +148,8 @@ const dashboardConfig: IConfigurationNode = {
 	id: 'Profiler',
 	type: 'object',
 	properties: {
-		[PROFILER_SESSION_TEMPLATE_SETTINGS]: profilerSessionTemplateSchema
+		[PROFILER_SESSION_TEMPLATE_SETTINGS]: profilerSessionTemplateSchema,
+		[PROFILER_VIEW_TEMPLATE_SETTINGS]: profilerViewTemplateSchema
 	}
 };
 

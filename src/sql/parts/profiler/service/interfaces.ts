@@ -16,6 +16,7 @@ export const IProfilerService = createDecorator<IProfilerService>(PROFILER_SERVI
 export type ProfilerSessionID = string;
 
 export const PROFILER_SESSION_TEMPLATE_SETTINGS = 'profiler.sessionTemplates';
+export const PROFILER_VIEW_TEMPLATE_SETTINGS = 'profiler.viewTemplates';
 export const PROFILER_SETTINGS = 'profiler';
 
 /**
@@ -94,24 +95,27 @@ export interface IProfilerService {
 
 export interface IProfilerSettings {
 	sessionTemplates: Array<IProfilerSessionTemplate>;
+	viewTemplates: Array<IProfilerViewTemplate>;
 }
 
-export interface IEventTemplate {
+export interface IColumnViewTemplate {
 	name: string;
-	optionalColumns: Array<string>;
+	width: string;
+	eventsMapped: Array<string>;
 }
 
-export interface IEventViewTemplate {
+export interface IProfilerViewTemplate {
 	name: string;
-	columns: Array<string>;
+	columns: Array<IColumnViewTemplate>;
 }
 
-export interface ISessionViewTemplate {
-	events: Array<IEventViewTemplate>;
+export interface ISessionCreateStatementTemplate {
+	versions: Array<string>;
+	statement: string;
 }
 
 export interface IProfilerSessionTemplate {
 	name: string;
-	events: Array<IEventTemplate>;
-	view: ISessionViewTemplate;
+	defaultView: string;
+	createStatements: Array<ISessionCreateStatementTemplate>;
 }
