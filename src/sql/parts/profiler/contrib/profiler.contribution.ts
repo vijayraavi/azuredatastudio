@@ -43,7 +43,7 @@ const profilerSessionTemplateSchema: IJSONSchema = {
 				{
 					versions: ['2012'],
 					statement: `
-						CREATE EVENT SESSION [Profiler] ON SERVER
+						CREATE EVENT SESSION [PROFILER_SESSION_NAME] ON SERVER
 						ADD EVENT sqlserver.attention(
 							ACTION(package0.event_sequence,sqlserver.client_app_name,sqlserver.client_pid,sqlserver.database_id,sqlserver.nt_username,sqlserver.query_hash,sqlserver.server_principal_name,sqlserver.session_id)
 							WHERE ([package0].[equal_boolean]([sqlserver].[is_system],(0)))),
@@ -68,7 +68,7 @@ const profilerSessionTemplateSchema: IJSONSchema = {
 				{
 					versions: ['cloud'],
 					statement: `
-						CREATE EVENT SESSION [Profiler] ON DATABASE
+						CREATE EVENT SESSION [PROFILER_SESSION_NAME] ON DATABASE
 						ADD EVENT sqlserver.attention(
 							ACTION(package0.event_sequence,sqlserver.client_app_name,sqlserver.client_pid,sqlserver.database_id,sqlserver.username,sqlserver.query_hash,sqlserver.session_id)
 							WHERE ([package0].[equal_boolean]([sqlserver].[is_system],(0)))),
@@ -89,6 +89,30 @@ const profilerSessionTemplateSchema: IJSONSchema = {
 							WHERE ([package0].[equal_boolean]([sqlserver].[is_system],(0))))
 						ADD TARGET package0.ring_buffer(SET max_events_limit=(1000),max_memory=(51200))
 						WITH (MAX_MEMORY=8192 KB,EVENT_RETENTION_MODE=ALLOW_SINGLE_EVENT_LOSS,MAX_DISPATCH_LATENCY=5 SECONDS,MAX_EVENT_SIZE=0 KB,MEMORY_PARTITION_MODE=PER_CPU,TRACK_CAUSALITY=ON,STARTUP_STATE=OFF)`
+				}
+			]
+		},
+		{
+			name: 'TSQL',
+			defaultView: 'TSQL_view',
+			createStatements: [
+				{
+					versions: ['2012'],
+					statement: `
+					CREATE EVENT SESSION [PROFILER_SESSION_NAME] ON SERVER
+					ADD EVENT sqlserver.existing_connection(
+						ACTION(package0.event_sequence,sqlserver.session_id,sqlserver.client_hostname)),
+					ADD EVENT sqlserver.login(SET collect_options_text=(1)
+						ACTION(package0.event_sequence,sqlserver.session_id,sqlserver.client_hostname)),
+					ADD EVENT sqlserver.logout(
+						ACTION(package0.event_sequence,sqlserver.session_id)),
+					ADD EVENT sqlserver.rpc_starting(
+						ACTION(package0.event_sequence,sqlserver.session_id,sqlserver.database_name)
+						WHERE ([package0].[equal_boolean]([sqlserver].[is_system],(0)))),
+					ADD EVENT sqlserver.sql_batch_starting(
+						ACTION(package0.event_sequence,sqlserver.session_id,sqlserver.database_name)
+						WHERE ([package0].[equal_boolean]([sqlserver].[is_system],(0))))
+					WITH (MAX_MEMORY=8192 KB,EVENT_RETENTION_MODE=ALLOW_SINGLE_EVENT_LOSS,MAX_DISPATCH_LATENCY=5 SECONDS,MAX_EVENT_SIZE=0 KB,MEMORY_PARTITION_MODE=PER_CPU,TRACK_CAUSALITY=ON,STARTUP_STATE=OFF)`
 				}
 			]
 		}
@@ -174,6 +198,291 @@ const profilerViewTemplateSchema: IJSONSchema = {
 					name: 'EndTime',
                     width: '1',
                     eventsMapped: []
+                },
+                {
+					name: 'BinaryData',
+                    width: '1',
+                    eventsMapped: []
+                }
+			]
+		},
+		{
+			name: 'TSQL_view',
+			columns: [
+				{
+                    name: 'EventClass',
+                    width: '1',
+                    eventsMapped: ['name']
+                },
+                {
+					name: 'TextData',
+                    width: '1',
+                    eventsMapped: ['options_text', 'batch_text']
+                },
+                {
+					name: 'SPID',
+                    width: '1',
+                    eventsMapped: ['session_id']
+                },
+                {
+					name: 'StartTime',
+                    width: '1',
+                    eventsMapped: ['timestamp']
+                },
+                {
+					name: 'BinaryData',
+                    width: '1',
+                    eventsMapped: []
+                }
+			]
+		},
+		{
+			name: 'Tuning_view',
+			columns: [
+				{
+                    name: 'EventClass',
+                    width: '1',
+                    eventsMapped: ['name']
+                },
+                {
+					name: 'TextData',
+                    width: '1',
+                    eventsMapped: ['options_text', 'batch_text']
+                },
+                {
+					name: 'Duration',
+                    width: '1',
+                    eventsMapped: []
+				},
+                {
+					name: 'SPID',
+                    width: '1',
+                    eventsMapped: ['session_id']
+                },
+                {
+					name: 'DatabaseID',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'DatabaseName',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'ObjectType',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'LoginName',
+                    width: '1',
+                    eventsMapped: ['server_principal_name']
+                }
+			]
+		},
+		{
+			name: 'TSQL_SPs_view',
+			columns: [
+				{
+                    name: 'EventClass',
+                    width: '1',
+                    eventsMapped: ['name']
+                },
+                {
+					name: 'TextData',
+                    width: '1',
+                    eventsMapped: ['options_text', 'batch_text']
+				},
+				{
+					name: 'DatabaseID',
+                    width: '1',
+                    eventsMapped: []
+				},
+				{
+					name: 'DatabaseName',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'ObjectID',
+                    width: '1',
+                    eventsMapped: []
+				},
+                {
+					name: 'ObjectName',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'ServerName',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'BinaryData',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'SPID',
+                    width: '1',
+                    eventsMapped: ['session_id']
+                },
+                {
+					name: 'StartTime',
+                    width: '1',
+                    eventsMapped: ['timestamp']
+                }
+			]
+		},
+		{
+			name: 'TSQL_Locks_view',
+			columns: [
+				{
+                    name: 'EventClass',
+                    width: '1',
+                    eventsMapped: ['name']
+                },
+                {
+					name: 'TextData',
+                    width: '1',
+                    eventsMapped: ['options_text', 'batch_text']
+                },
+                {
+					name: 'ApplicationName',
+                    width: '1',
+                    eventsMapped: ['client_app_name']
+				},
+                {
+					name: 'NTUserName',
+                    width: '1',
+                    eventsMapped: ['nt_username']
+                },
+                {
+					name: 'LoginName',
+                    width: '1',
+                    eventsMapped: ['server_principal_name']
+                },
+                {
+					name: 'ClientProcessID',
+                    width: '1',
+                    eventsMapped: ['client_pid']
+                },
+                {
+					name: 'SPID',
+                    width: '1',
+                    eventsMapped: ['session_id']
+                },
+                {
+					name: 'StartTime',
+                    width: '1',
+                    eventsMapped: ['timestamp']
+                },
+                {
+					name: 'CPU',
+                    width: '1',
+                    eventsMapped: ['cpu_time']
+                },
+                {
+					name: 'Reads',
+                    width: '1',
+                    eventsMapped: ['logical_reads']
+                },
+                {
+					name: 'Writes',
+                    width: '1',
+                    eventsMapped: ['writes']
+                },
+                {
+					name: 'Duration',
+                    width: '1',
+                    eventsMapped: ['duration']
+                },
+                {
+					name: 'EndTime',
+                    width: '1',
+                    eventsMapped: []
+                },
+                {
+					name: 'BinaryData',
+                    width: '1',
+                    eventsMapped: []
+                }
+			]
+		},
+		{
+			name: 'TSQL_Grouped_view',
+			columns: [
+				{
+					name: 'ApplicationName',
+                    width: '1',
+                    eventsMapped: ['client_app_name']
+				},
+				{
+					name: 'NTUserName',
+                    width: '1',
+                    eventsMapped: ['nt_username']
+				},
+				{
+					name: 'LoginName',
+                    width: '1',
+                    eventsMapped: ['server_principal_name']
+				},
+				{
+					name: 'ClientProcessID',
+                    width: '1',
+                    eventsMapped: ['client_pid']
+                },
+				{
+                    name: 'EventClass',
+                    width: '1',
+                    eventsMapped: ['name']
+                },
+                {
+					name: 'TextData',
+                    width: '1',
+                    eventsMapped: ['options_text', 'batch_text']
+                },
+                {
+					name: 'SPID',
+                    width: '1',
+                    eventsMapped: ['session_id']
+                },
+                {
+					name: 'StartTime',
+                    width: '1',
+                    eventsMapped: ['timestamp']
+                },
+                {
+					name: 'BinaryData',
+                    width: '1',
+                    eventsMapped: []
+                }
+			]
+		},
+		{
+			name: 'TSQL_Duration_view',
+			columns: [
+				{
+                    name: 'EventClass',
+                    width: '1',
+                    eventsMapped: ['name']
+				},
+				{
+					name: 'Duration',
+                    width: '1',
+                    eventsMapped: ['duration']
+                },
+                {
+					name: 'TextData',
+                    width: '1',
+                    eventsMapped: ['options_text', 'batch_text']
+                },
+                {
+					name: 'SPID',
+                    width: '1',
+                    eventsMapped: ['session_id']
                 },
                 {
 					name: 'BinaryData',

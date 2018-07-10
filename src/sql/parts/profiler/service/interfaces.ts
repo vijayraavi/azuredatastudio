@@ -81,11 +81,18 @@ export interface IProfilerService {
 	onSessionStopped(params: sqlops.ProfilerSessionStoppedParams): void;
 	/**
 	 * Gets a list of the session templates that are specified in the settings
-	 * @param provider An optional string to limit the session template to a specific
+	 * @param provider An optional string to limit the session template to a specific provider
 	 * @returns An array of session templates that match the provider passed, if passed, and generic ones (no provider specified),
 	 * otherwise returns all session templates
 	 */
 	getSessionTemplates(providerId?: string): Array<IProfilerSessionTemplate>;
+	/**
+	 * Gets a list of the view templates that are specified in the settings
+	 * @param provider An optional string to limit the view template to a specific provider
+	 * @returns An array of view templates that match the provider passed, if passed, and generic ones (no provider specified),
+	 * otherwise returns all view templates
+	 */
+	getViewTemplates(providerId?: string): Array<IProfilerViewTemplate>;
 	/**
 	 * Launches the dialog for editing the view columns of a profiler session template for the given input
 	 * @param input input object that contains the necessary information which will be modified based on used input

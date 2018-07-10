@@ -29,6 +29,8 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 	private _state: ProfilerState;
 	private _columns: string[] = [];
 	private _viewTemplate: IProfilerViewTemplate;
+	// mapping of event categories to what column they display under
+	// used for coallescing multiple events with different names to the same column
 	private _columnMapping: { [event : string] : string} = {};
 
 	private _onColumnsChanged = new Emitter<Slick.Column<Slick.SlickData>[]>();
@@ -63,32 +65,23 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 		};
 		this._data = new TableDataView<Slick.SlickData>(undefined, searchFn);
 	}
-	//store all my columns in a dictionary
-	// all the keys are a
 
 	public set viewTemplate(template: IProfilerViewTemplate) {
+		this._data.clear();
 		this._viewTemplate = template;
 		// need to confirm that this actually does go in order
-		let newColumns = this._viewTemplate.columns.reduceRight<Array<string>>((p, e) => {
+		let newColumns = this._viewTemplate.columns.reduce<Array<string>>((p, e) => {
 			p.push(e.name);
 			return p;
 		}, []);
-		/*
-		this._viewTemplate.columns.reduce<Array<string>>((p, e) => {
-			e.columns.forEach(c => {
-				if (!p.includes(c)) {
-					p.push(c);
-				}
-			});
-			return p;
-		}, []);
-		*/
+		//Should create a new map of events -> column to display under
 		let newMapping: {[event : string]:string} = {};
 		this._viewTemplate.columns.forEach(c => {
 			c.eventsMapped.forEach( e => {
 				newMapping[e] = c.name;
 			});
 		});
+		// make sure that this doesn't fire multiple times or get too slow
 		this.setColumns(newColumns);
 		this.setColumnMapping(newMapping);
 	}
@@ -136,6 +129,7 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 	public setColumnMapping(mapping: {[event : string]:string}) {
 		this._columnMapping = mapping;
 		// probably need to put logic in here to account for updating the data mapping
+		// column mapping would update with uploading a new view template, or with the edit column dialogue
 		this._onColumnsChanged.fire(this.columns);
 	}
 
@@ -161,6 +155,9 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 		this.state.change(state);
 	}
 
+	// switch my row recieving methods!
+	// change it so now all my stuff goes in to this
+
 	public onMoreRows(eventMessage: sqlops.ProfilerSessionEvents) {
 		if (eventMessage.eventsLost){
 			this._notificationService.warn(nls.localize("profiler.eventsLost", "The XEvent Profiler session for {0} has lost events.", this._connection.serverName));
@@ -171,37 +168,6 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 			let data = {};
 			data['EventClass'] =  e.name;
 			data['StartTime'] = e.timestamp;
-			/*
-			const columns = [
-				'TextData',
-				'ApplicationName',
-				'NTUserName',
-				'LoginName',
-				'CPU',
-				'Reads',
-				'Writes',
-				'Duration',
-				'ClientProcessID',
-				'SPID',
-				'StartTime',
-				'EndTime',
-				'BinaryData'
-			];
-
-			let columnNameMap: Map<string, string> = new Map<string, string>();
-			columnNameMap['client_app_name'] = 'ApplicationName';
-			columnNameMap['nt_username'] = 'NTUserName';
-			columnNameMap['options_text'] = 'TextData';
-			columnNameMap['server_principal_name'] = 'LoginName';
-			columnNameMap['session_id'] = 'SPID';
-			columnNameMap['batch_text'] = 'TextData';
-			columnNameMap['cpu_time'] = 'CPU';
-			columnNameMap['duration'] = 'Duration';
-			columnNameMap['logical_reads'] = 'Reads';
-			columnNameMap['event_sequence'] = 'EventSequence';
-			columnNameMap['client_pid'] = 'ClientProcessID';
-			columnNameMap['writes'] = 'Writes';
-			*/
 
 			// Using ' ' instead of '' fixed the error where clicking through events
 			// with empty text fields causes future text panes to be highlighted.
