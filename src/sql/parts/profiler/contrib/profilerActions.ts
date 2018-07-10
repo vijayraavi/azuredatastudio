@@ -14,6 +14,7 @@ import { ObjectExplorerActionsContext } from 'sql/parts/objectExplorer/viewlet/o
 import { ConnectionProfile } from 'sql/parts/connection/common/connectionProfile';
 import { IConnectionManagementService, IConnectionCompletionOptions, ConnectionType } from 'sql/parts/connection/common/connectionManagement';
 import { IConnectionProfile } from 'sql/parts/connection/common/interfaces';
+import * as sqlops from 'sqlops';
 
 import { TPromise } from 'vs/base/common/winjs.base';
 import { Action } from 'vs/base/common/actions';
@@ -76,10 +77,10 @@ export class ProfilerStart extends Action {
 		super(id, label, 'start');
 	}
 
-	public run(input: ProfilerInput): TPromise<boolean> {
+	public run(input: ProfilerInput): TPromise<sqlops.StartProfilingResponse> {
 		this.enabled = false;
 		input.data.clear();
-		return TPromise.wrap(this._profilerService.startSession(input.id));
+		return TPromise.wrap(this._profilerService.startSession(input.id, input.sessionName));
 	}
 }
 

@@ -17,6 +17,9 @@ import * as sqlops from 'sqlops';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { INotificationService } from 'vs/platform/notification/common/notification';
+import { Severity } from 'vs/editor/common/standalone/standaloneBase';
+import { Choice } from 'vs/editor/contrib/snippet/snippetParser';
 
 class TwoWayMap<T, K> {
 	private forwardMap: Map<T, K>;
@@ -45,14 +48,17 @@ class TwoWayMap<T, K> {
 export class ProfilerService implements IProfilerService {
 	public _serviceBrand: any;
 	private _providers = new Map<string, sqlops.ProfilerProvider>();
+	// why is this a two way map? What's the point of doing any of this???
 	private _idMap = new TwoWayMap<ProfilerSessionID, string>();
-	private _sessionMap = new Map<ProfilerSessionID, IProfilerSession>();
+	// profiler session id's to profiler inputs
+	private _profilerSessionMap = new Map<ProfilerSessionID, IProfilerSession>();
 	private _dialog: ProfilerColumnEditorDialog;
 
 	constructor(
 		@IConnectionManagementService private _connectionService: IConnectionManagementService,
 		@IConfigurationService public _configurationService: IConfigurationService,
-		@IInstantiationService private _instantiationService: IInstantiationService
+		@IInstantiationService private _instantiationService: IInstantiationService,
+		@INotificationService private _notificationService: INotificationService
 	) { }
 
 	public registerProvider(providerId: string, provider: sqlops.ProfilerProvider): void {
@@ -72,19 +78,21 @@ export class ProfilerService implements IProfilerService {
 		}).catch(connectionError => {
 
 		});
-		this._sessionMap.set(uri, session);
+		this._profilerSessionMap.set(uri, session);
 		this._idMap.set(uri, uri);
 		return uri;
 	}
 
 	public onMoreRows(params: sqlops.ProfilerSessionEvents): void {
 
-		this._sessionMap.get(this._idMap.reverseGet(params.sessionId)).onMoreRows(params);
+		this._profilerSessionMap.get(params.profilerSessionId).onMoreRows(params);
 	}
 
-	public onSessionStopped(params: sqlops.ProfilerSessionStoppedParams): void {
+	// it might finally be time to tackle the Id map!!!
 
-		this._sessionMap.get(this._idMap.reverseGet(params.ownerUri)).onSessionStopped(params);
+	public onSessionStopped(params: sqlops.ProfilerSessionStoppedNotification): void {
+		// TODO: Confirm that tools service sends a notification for each profiler session that's affected
+		this._profilerSessionMap.get(params.profilerSessionId).onSessionStopped(params);
 	}
 
 	public connectSession(id: ProfilerSessionID): Thenable<boolean> {
@@ -95,10 +103,44 @@ export class ProfilerService implements IProfilerService {
 		return this._runAction(id, provider => provider.disconnectSession(this._idMap.get(id)));
 	}
 
-	public startSession(id: ProfilerSessionID): Thenable<boolean> {
-		return this._runAction(id, provider => provider.startSession(this._idMap.get(id))).then(() => {
-			this._sessionMap.get(this._idMap.reverseGet(id)).onSessionStateChanged({ isRunning: true, isStopped: false, isPaused: false });
-			return true;
+	public createSession(id: ProfilerSessionID, createStatement: string, xEventSessionName: string): Thenable<sqlops.CreateProfilerSessionResponse> {
+		return this._runAction(id, provider => provider.createSession(id, createStatement, xEventSessionName)).then((r) => {
+			let profilerSession = this._profilerSessionMap.get(id);
+			if (r.succeeded) {
+				// TODO: should also clear the view pane here
+				// TODO: update the profiler session name or something
+				profilerSession.onSessionStateChanged({ isRunning: true, isStopped: false, isPaused: false });
+			} else {
+				this._notificationService.prompt(
+					Severity.Error,
+					r.errorMessage,
+					[{
+						label: 'Close',
+						run: () => {}
+					}]
+				);
+			}
+			return r;
+		});
+	}
+
+	public startSession(id: ProfilerSessionID, xEventSessionName: string): Thenable<sqlops.StartProfilingResponse> {
+		return this._runAction(id, provider => provider.startSession(id, xEventSessionName)).then((r) => {
+			let profilerSession = this._profilerSessionMap.get(id);
+			if (r.succeeded) {
+				// TODO: should also clear the view pane here
+				profilerSession.onSessionStateChanged({ isRunning: true, isStopped: false, isPaused: false });
+			} else {
+				this._notificationService.prompt(
+					Severity.Error,
+					r.errorMessage,
+					[{
+						label: 'Close',
+						run: () => {}
+					}]
+				);
+			}
+			return r;
 		});
 	}
 
@@ -108,8 +150,21 @@ export class ProfilerService implements IProfilerService {
 
 	public stopSession(id: ProfilerSessionID): Thenable<boolean> {
 		return this._runAction(id, provider => provider.stopSession(this._idMap.get(id))).then(() => {
-			this._sessionMap.get(this._idMap.reverseGet(id)).onSessionStateChanged({ isStopped: true, isPaused: false, isRunning: false });
+			this._profilerSessionMap.get(this._idMap.reverseGet(id)).onSessionStateChanged({ isStopped: true, isPaused: false, isRunning: false });
 			return true;
+		});
+	}
+
+	public listAvailableSessions(id: ProfilerSessionID): Thenable<sqlops.ListAvailableSessionsResponse> {
+		return this._runAction(id, provider => provider.listAvailableSessions(id)).then((r) => {
+			let profilerSession = this._profilerSessionMap.get(id);
+			if (r.succeeded) {
+				// here is where I notify about new events
+				// not sure how to do that tbh, but it shouldn't be too bad, right?
+			} else {
+				this._notificationService.warn(r.errorMessage);
+			}
+			return r;
 		});
 	}
 

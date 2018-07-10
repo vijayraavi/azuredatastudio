@@ -116,6 +116,8 @@ export class ProfilerEditor extends BaseEditor {
 
 	private _sessionTemplateSelector: SelectBox;
 	private _sessionTemplates: Array<IProfilerSessionTemplate>;
+	private _sessionsList: Array<string>;
+	private _sessionSelector: SelectBox;
 
 	private _viewTemplateSelector: SelectBox;
 	private _viewTemplates: Array<IProfilerViewTemplate>;
@@ -192,11 +194,12 @@ export class ProfilerEditor extends BaseEditor {
 		this._connectAction = this._instantiationService.createInstance(Actions.ProfilerConnect, Actions.ProfilerConnect.ID, Actions.ProfilerConnect.LABEL);
 		this._autoscrollAction = this._instantiationService.createInstance(Actions.ProfilerAutoScroll, Actions.ProfilerAutoScroll.ID, Actions.ProfilerAutoScroll.LABEL);
 
-		this._sessionTemplates = this._profilerService.getSessionTemplates();
-		this._sessionTemplateSelector = new SelectBox(this._sessionTemplates.map(i => i.name), 'Standard', this._contextViewService);
+		this._profilerService.listAvailableSessions(this.input.id).then((r) => {this._sessionsList = r.availableSessions;});
+
+		this._sessionSelector = new SelectBox(this._sessionsList, this._sessionsList[0], this._contextViewService);
 		this._register(this._sessionTemplateSelector.onDidSelect(e => {
 			if (this.input) {
-				//this.input.sessionTemplate = this._sessionTemplates.find(i => i.name === e.selected);
+				this.input.sessionName = this._sessionsList.find(i => i === e.selected);
 			}
 		}));
 

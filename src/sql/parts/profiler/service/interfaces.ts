@@ -30,7 +30,7 @@ export interface IProfilerSession {
 	/**
 	 * Called by the service when the session is closed unexpectedly
 	 */
-	onSessionStopped(events: sqlops.ProfilerSessionStoppedParams);
+	onSessionStopped(events: sqlops.ProfilerSessionStoppedNotification);
 	/**
 	 * Called by the service when the session state is changed
 	 */
@@ -60,17 +60,27 @@ export interface IProfilerService {
 	 */
 	disconnectSession(sessionId: ProfilerSessionID): Thenable<boolean>;
 	/**
-	 * Starts the session specified by the id
+	 * Creates a new XEvent session with given session name and create statement
+	 * sends events from the new XEvent session to the profiler session specified by the id
 	 */
-	startSession(sessionId: ProfilerSessionID): Thenable<boolean>;
+	createSession(profilerSessionId: string, createStatement: string, xEventSessionName: string): Thenable<sqlops.CreateProfilerSessionResponse>;
 	/**
-	 * Pauses the session specified by the id
+	 * Starts the XEvent session specified by the XEvent session name
+	 * sends events from the started XEvent session to the profiler session specified by the id
 	 */
-	pauseSession(sessionId: ProfilerSessionID): Thenable<boolean>;
+	startSession(profilerSessionId: string, xEventSessionName: string): Thenable<sqlops.StartProfilingResponse>;
 	/**
-	 * Stops the session specified by the id
+	 * Toggles the pause state of the profiler session specified by the id
 	 */
-	stopSession(sessionId: ProfilerSessionID): Thenable<boolean>;
+	pauseSession(profilerSessionId: ProfilerSessionID): Thenable<boolean>;
+	/**
+	 * Stops the XEvent session being monitored by the profiler session specified by the id
+	 */
+	stopSession(profilerSessionId: ProfilerSessionID): Thenable<boolean>;
+	/**
+	 * Gets a list of all available XEvent sessions for the target that the specified profiler session is connected to
+	 */
+	listAvailableSessions(profilerSessionId: string): Thenable<sqlops.ListAvailableSessionsResponse>;
 	/**
 	 * The method called by the service provider for when more rows are available to render
 	 */
@@ -78,7 +88,7 @@ export interface IProfilerService {
 	/**
 	 * The method called by the service provider for when more rows are available to render
 	 */
-	onSessionStopped(params: sqlops.ProfilerSessionStoppedParams): void;
+	onSessionStopped(params: sqlops.ProfilerSessionStoppedNotification): void;
 	/**
 	 * Gets a list of the session templates that are specified in the settings
 	 * @param provider An optional string to limit the session template to a specific provider

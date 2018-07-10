@@ -1533,14 +1533,16 @@ declare module 'sqlops' {
 	}
 
 	export interface ProfilerProvider extends DataProvider {
-		startSession(sessionId: string): Thenable<boolean>;
-		stopSession(sessionId: string): Thenable<boolean>;
-		pauseSession(sessionId: string): Thenable<boolean>;
-		connectSession(sessionId: string): Thenable<boolean>;
-		disconnectSession(sessionId: string): Thenable<boolean>;
+		createSession(profilerSessionId: string, createStatement: string, xEventSessionName: string): Thenable<CreateProfilerSessionResponse>
+		startSession(profilerSessionId: string, xEventSessionName: string): Thenable<StartProfilingResponse>;
+		stopSession(profilerSessionId: string): Thenable<boolean>;
+		pauseSession(profilerSessionId: string): Thenable<boolean>;
+		connectSession(profilerSessionId: string): Thenable<boolean>;
+		disconnectSession(profilerSessionId: string): Thenable<boolean>;
+		listAvailableSessions(profilerSessionId: string): Thenable<ListAvailableSessionsResponse>;
 
 		registerOnSessionEventsAvailable(handler: (response: ProfilerSessionEvents) => any): void;
-		registerOnSessionStopped(handler: (response: ProfilerSessionStoppedParams) => any): void;
+		registerOnSessionStopped(handler: (response: ProfilerSessionStoppedNotification) => any): void;
 	}
 
 	export interface IProfilerTableRow {
@@ -1578,18 +1580,74 @@ declare module 'sqlops' {
 	}
 
 	export interface ProfilerSessionEvents {
-		sessionId: string;
+		profilerSessionId: string;
 
 		events: ProfilerEvent[];
 
 		eventsLost: boolean;
 	}
 
-	export interface ProfilerSessionStoppedParams {
+	export interface ProfilerSessionStoppedNotification {
+		/**
+		 * profiler document window Id
+		 */
+		profilerSessionId: string;
 
-		ownerUri: string;
+		/**
+		 * XEvent session Id for stopped session
+		 */
+		xEventSessionId: string;
+	}
 
-		sessionId: number;
+	export interface CreateProfilerSessionResponse {
+		/**
+		 * XEvent session Id for created session
+		 */
+		xEventSessionId: string;
+
+		/**
+		 * Sucess status
+		 */
+		succeeded: string;
+
+		/**
+		 * Error message
+		 */
+		errorMessage: string;
+	}
+
+	export interface StartProfilingResponse {
+		/**
+		 * XEvent session Id for started session
+		 */
+		xEventSessionId: string;
+
+		/**
+		 * Sucess status
+		 */
+		succeeded: string;
+
+		/**
+		 * Error message
+		 */
+		errorMessage: string;
+	}
+
+	export interface ListAvailableSessionsResponse {
+		/**
+		 * List of all XEvent sessions available on target
+		 */
+		availableSessions: string[];
+
+		/**
+		 * Success status
+		 */
+		succeeded: string;
+
+		/**
+		 * Error message
+		 */
+		errorMessage: string;
 	}
 
 	// File browser interfaces  -----------------------------------------------------------------------

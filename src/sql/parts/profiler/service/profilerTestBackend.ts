@@ -39,16 +39,24 @@ export class ProfilerTestBackend implements sqlops.ProfilerProvider {
 	constructor(
 		@IProfilerService private _profilerService: IProfilerService) { }
 
-	startSession(guid: string): Thenable<boolean> {
+	createSession(guid: string, create: string, session: string): Thenable<sqlops.CreateProfilerSessionResponse> {
 		this.timeOutMap.set(guid, this.intervalFn(guid));
-		return TPromise.as(true);
+		return null;
+	}
+
+	startSession(guid: string, session: string): Thenable<sqlops.StartProfilingResponse> {
+		return null;
+	}
+
+	listAvailableSessions(guid: string): Thenable<sqlops.ListAvailableSessionsResponse> {
+		return null;
 	}
 
 	registerOnSessionEventsAvailable(handler: (response: sqlops.ProfilerSessionEvents) => any) {
 		return;
 	}
 
-	registerOnSessionStopped(handler: (response: sqlops.ProfilerSessionStoppedParams) => any) {
+	registerOnSessionStopped(handler: (response: sqlops.ProfilerSessionStoppedNotification) => any) {
 		return;
 	}
 

@@ -494,10 +494,17 @@ export class ExtHostDataProtocol extends ExtHostDataProtocolShape {
 	 */
 
 	/**
+	 * Create a new profiler session
+	 */
+	public $createSession(handle: number, ownerUri: string, createStatement: string, sessionName: string): Thenable<sqlops.CreateProfilerSessionResponse> {
+		return this._resolveProvider<sqlops.ProfilerProvider>(handle).createSession(ownerUri, createStatement, sessionName);
+	}
+
+	/**
 	 * Start a profiler session
 	 */
-	public $startSession(handle: number, sessionId: string): Thenable<boolean> {
-		return this._resolveProvider<sqlops.ProfilerProvider>(handle).startSession(sessionId);
+	public $startSession(handle: number, sessionId: string, sessionName: string): Thenable<sqlops.StartProfilingResponse> {
+		return this._resolveProvider<sqlops.ProfilerProvider>(handle).startSession(sessionId, sessionName);
 	}
 
 	/**
@@ -514,6 +521,13 @@ export class ExtHostDataProtocol extends ExtHostDataProtocolShape {
 		return this._resolveProvider<sqlops.ProfilerProvider>(handle).pauseSession(sessionId);
 	}
 
+	/**
+	 * List all available sessions on target
+	 */
+	public $listAvailableSessions(handle: number, sessionId: string): Thenable<sqlops.ListAvailableSessionsResponse> {
+		return this._resolveProvider<sqlops.ProfilerProvider>(handle).listAvailableSessions(sessionId);
+	}
+
 
 	/**
 	 * Profiler session events available notification
@@ -525,7 +539,7 @@ export class ExtHostDataProtocol extends ExtHostDataProtocolShape {
 	/**
 	 * Profiler session stopped unexpectedly notification
 	 */
-	public $onSessionStopped(handle: number, response: sqlops.ProfilerSessionStoppedParams): void {
+	public $onSessionStopped(handle: number, response: sqlops.ProfilerSessionStoppedNotification): void {
 		this._proxy.$onSessionStopped(handle, response);
 	}
 

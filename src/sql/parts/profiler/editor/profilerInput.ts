@@ -29,6 +29,7 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 	private _state: ProfilerState;
 	private _columns: string[] = [];
 	private _viewTemplate: IProfilerViewTemplate;
+	private _sessionName: string;
 	// mapping of event categories to what column they display under
 	// used for coallescing multiple events with different names to the same column
 	private _columnMapping: { [event : string] : string} = {};
@@ -52,6 +53,9 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 			isRunning: false,
 			autoscroll: true
 		});
+
+		//probably have to do something here with this
+		this._sessionName = "profiler";
 
 		this._id = this._profilerService.registerSession(generateUuid(), _connection, this);
 		let searchFn = (val: { [x: string]: string }, exp: string): Array<number> => {
@@ -106,6 +110,14 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 		return this._data;
 	}
 
+	public get sessionName(): string {
+		return this._sessionName;
+	}
+
+	public set sessionName(value: string) {
+		this._sessionName = value;
+	}
+
 	public get columns(): Slick.Column<Slick.SlickData>[] {
 		if (this._columns) {
 			return this._columns.map(i => {
@@ -141,7 +153,7 @@ export class ProfilerInput extends EditorInput implements IProfilerSession {
 		return this._state;
 	}
 
-	public onSessionStopped(notification: sqlops.ProfilerSessionStoppedParams) {
+	public onSessionStopped(notification: sqlops.ProfilerSessionStoppedNotification) {
 		this._notificationService.error(nls.localize("profiler.sessionStopped", "XEvent Profiler Session stopped unexpectedly on the server {0}.", this._connection.serverName));
 
 		this.state.change({

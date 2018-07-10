@@ -237,7 +237,7 @@ export function createApiFactory(
 					extHostDataProvider.$onSessionEventsAvailable(provider.handle, response);
 				});
 
-				provider.registerOnSessionStopped((response: sqlops.ProfilerSessionStoppedParams) => {
+				provider.registerOnSessionStopped((response: sqlops.ProfilerSessionStoppedNotification) => {
 					extHostDataProvider.$onSessionStopped(provider.handle, response);
 				});
 

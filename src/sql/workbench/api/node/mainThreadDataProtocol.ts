@@ -292,8 +292,11 @@ export class MainThreadDataProtocol implements MainThreadDataProtocolShape {
 	public $registerProfilerProvider(providerId: string, handle: number): TPromise<any> {
 		const self = this;
 		this._profilerService.registerProvider(providerId, <sqlops.ProfilerProvider>{
-			startSession(sessionId: string): Thenable<boolean> {
-				return self._proxy.$startSession(handle, sessionId);
+			createSession(sessionId: string, createStatement: string, sessionName: string): Thenable<sqlops.CreateProfilerSessionResponse> {
+				return self._proxy.$createSession(handle, sessionId, createStatement, sessionName);
+			},
+			startSession(sessionId: string, sessionName: string): Thenable<sqlops.StartProfilingResponse> {
+				return self._proxy.$startSession(handle, sessionId, sessionName);
 			},
 			stopSession(sessionId: string): Thenable<boolean> {
 				return self._proxy.$stopSession(handle, sessionId);
@@ -306,7 +309,10 @@ export class MainThreadDataProtocol implements MainThreadDataProtocolShape {
 			},
 			disconnectSession(sessionId: string): Thenable<boolean> {
 				return TPromise.as(true);
-			}
+			},
+			listAvailableSessions(sessionId: string): Thenable<sqlops.ListAvailableSessionsResponse> {
+				return self._proxy.$listAvailableSessions(handle, sessionId);
+			},
 		});
 
 		return undefined;
@@ -456,7 +462,7 @@ export class MainThreadDataProtocol implements MainThreadDataProtocolShape {
 		this._profilerService.onMoreRows(response);
 	}
 
-	public $onSessionStopped(handle: number, response: sqlops.ProfilerSessionStoppedParams): void {
+	public $onSessionStopped(handle: number, response: sqlops.ProfilerSessionStoppedNotification): void {
 		this._profilerService.onSessionStopped(response);
 	}
 
