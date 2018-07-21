@@ -23,7 +23,7 @@ export default class MainController extends ControllerBase {
 	}
 
 	public activate(): Promise<boolean> {
-		sqlops.tasks.registerTask('flatFileImport.start', vscode.window.showInformationMessage("OwO what's this"));
+		sqlops.tasks.registerTask('flatFileImport.start', e => vscode.window.showInformationMessage("OwO what's this"));
 
 		return Promise.resolve(true);
 	}
