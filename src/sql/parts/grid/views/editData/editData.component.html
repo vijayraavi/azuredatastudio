@@ -10,9 +10,10 @@
 		 (onScroll)="onScroll($event)" [class.hidden]="!resultActive">
 		<div class="boxRow content horzBox slickgrid editable" *ngFor="let dataSet of renderedDataSets; let i = index"
 			[style.max-height]="dataSet.maxHeight" [style.min-height]="dataSet.minHeight">
-			<slick-grid #slickgrid id="slickgrid_{{i}}"
+			<slick-grid id="slickgrid_{{i}}"
 						enableAsyncPostRender="true"
 						enableEditing="true"
+						renderWithoutData="false"
 						[columnDefinitions]="dataSet.columnDefinitions"
 						[ngClass]="i === activeGrid ? 'active' : ''"
 						[dataRows]="dataSet.dataRows"
@@ -20,6 +21,7 @@
 						[plugins]="plugins[i]"
 						[isCellEditValid]="isCellEditValid"
 						[overrideCellFn]="overrideCellFn"
+						[options]="gridOptions"
 						(onActiveCellChanged)="onActiveCellChanged($event)"
 						(onBeforeEditCell)="onBeforeEditCell($event)"
 						(onCellChange)="onCellChange($event)"

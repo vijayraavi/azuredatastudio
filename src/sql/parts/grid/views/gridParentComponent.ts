@@ -13,7 +13,7 @@ import 'vs/css!sql/parts/grid/media/slickGrid';
 
 import { Subscription, Subject } from 'rxjs/Rx';
 import { ElementRef, QueryList, ChangeDetectorRef, ViewChildren } from '@angular/core';
-import { IGridDataRow, ISlickRange, SlickGrid, FieldType } from 'angular2-slickgrid';
+import { ISlickRange, SlickGrid } from 'angular2-slickgrid';
 import { toDisposableSubscription } from 'sql/parts/common/rxjsUtils';
 import * as Constants from 'sql/parts/query/common/constants';
 import * as LocalizedConstants from 'sql/parts/query/common/localizedConstants';
@@ -78,7 +78,7 @@ export abstract class GridParentComponent {
 	protected _messageActive = true;
 	protected activeGrid = 0;
 
-	@ViewChildren('slickgrid') slickgrids: QueryList<SlickGrid>;
+	@ViewChildren(SlickGrid) slickgrids: QueryList<SlickGrid>;
 
 	set messageActive(input: boolean) {
 		this._messageActive = input;

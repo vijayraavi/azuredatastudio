@@ -39,18 +39,20 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { IClipboardService } from 'vs/platform/clipboard/common/clipboardService';
 import { KeyCode } from 'vs/base/common/keyCodes';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
+import { Queue } from 'vs/base/common/async';
+import { TPromise } from 'vs/base/common/winjs.base';
+
 export const EDITDATA_SELECTOR: string = 'editdata-component';
+
+const windowSize = 50;
+const scrollTimeOutTime = 200;
 
 @Component({
 	selector: EDITDATA_SELECTOR,
 	host: { '(window:keydown)': 'keyEvent($event)', '(window:gridnav)': 'keyEvent($event)' },
 	templateUrl: decodeURI(require.toUrl('sql/parts/grid/views/editData/editData.component.html'))
 })
-
 export class EditDataComponent extends GridParentComponent implements OnInit, OnDestroy {
-	// CONSTANTS
-	private scrollTimeOutTime = 200;
-	private windowSize = 50;
 
 	// FIELDS
 	// All datasets
@@ -59,15 +61,20 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 	private firstRender = true;
 	private idMapping: { [row: number]: number } = {};
 
+	private editQueue = new Queue();
+
 	// Current selected cell state
-	private currentCell: { row: number, column: number, isEditable: boolean };
+	private currentCell: { row: number, column: number };
 	private currentEditCellValue: string;
 	private newRowVisible: boolean;
 	private removingNewRow: boolean;
 	private rowIdMappings: { [gridRowId: number]: number } = {};
 	protected plugins = new Array<Array<Slick.Plugin<any>>>();
 
-	protected overrideCellFn: (rowNumber, columnId, value?, data?) => string;
+	protected gridOptions: Slick.GridOptions<any> = {
+		enableAddRow: true
+	};
+
 	protected loadDataFunction: (offset: number, count: number) => Promise<IGridDataRow[]>;
 
 	constructor(
@@ -93,7 +100,6 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 	 * Called by Angular when the object is initialized
 	 */
 	ngOnInit(): void {
-		const self = this;
 		this.baseInit();
 
 		// Add the subscription to the list of things to be disposed on destroy, or else on a new component init
@@ -101,22 +107,24 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 		this.subscribeWithDispose(this.dataService.queryEventObserver, (event) => {
 			switch (event.type) {
 				case 'start':
-					self.handleStart(self, event);
+					this.handleStart();
 					break;
 				case 'message':
-					self.handleMessage(self, event);
+					this.handleMessage(event);
+					break;
+				case 'complete':
 					break;
 				case 'resultSet':
-					self.handleResultSet(self, event);
+					this.handleResultSet(event);
 					break;
 				case 'editSessionReady':
-					self.handleEditSessionReady(self, event);
+					this.handleEditSessionReady(event);
 					break;
 				default:
 					error('Unexpected query event type "' + event.type + '" sent');
 					break;
 			}
-			self._cd.detectChanges();
+			this._cd.detectChanges();
 		});
 
 		this.dataService.onAngularLoaded();
@@ -130,28 +138,17 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 		this.baseDestroy();
 	}
 
-	private handleStart(self: EditDataComponent, event: any): void {
-		self.dataSet = undefined;
-		self.placeHolderDataSets = [];
-		self.renderedDataSets = self.placeHolderDataSets;
-
-		this.overrideCellFn = (rowNumber, columnId, value?, data?): string => {
-			let returnVal = '';
-			if (Services.DBCellValue.isDBCellValue(value)) {
-				returnVal = value.displayValue;
-			} else if (typeof value === 'string') {
-				returnVal = value;
-			}
-			return returnVal;
-		};
+	private handleStart(): void {
+		this.dataSet = undefined;
+		this.renderedDataSets = this.placeHolderDataSets = [];
 
 		// Setup a function for generating a promise to lookup result subsets
 		this.loadDataFunction = (offset: number, count: number): Promise<IGridDataRow[]> => {
-			return new Promise<IGridDataRow[]>((resolve, reject) => {
-				self.dataService.getEditRows(offset, count).subscribe(result => {
+			return new Promise<IGridDataRow[]>((resolve) => {
+				this.dataService.getEditRows(offset, count).subscribe(result => {
 					let rowIndex = offset;
 					let gridData: IGridDataRow[] = result.subset.map(row => {
-						self.idMapping[rowIndex] = row.id;
+						this.idMapping[rowIndex] = row.id;
 						rowIndex++;
 						return {
 							values: [{}].concat(row.cells.map(c => {
@@ -160,9 +157,6 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 						};
 					});
 
-					// Append a NULL row to the end of gridData
-					let newLastRow = gridData.length === 0 ? 0 : (gridData[gridData.length - 1].row + 1);
-					gridData.push({ values: self.dataSet.columnDefinitions.map(cell => { return { displayValue: 'NULL', isNull: false }; }), row: newLastRow });
 					resolve(gridData);
 				});
 			});
@@ -190,20 +184,20 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 		};
 	}
 
-	private handleEditSessionReady(self, event): void {
+	private handleEditSessionReady(event): void {
 		// TODO: update when edit session is ready
 	}
 
-	private handleMessage(self: EditDataComponent, event: any): void {
+	private handleMessage(event: any): void {
 		if (event.data && event.data.isError) {
-			self.notificationService.notify({
+			this.notificationService.notify({
 				severity: Severity.Error,
 				message: event.data.message
 			});
 		}
 	}
 
-	private handleResultSet(self: EditDataComponent, event: any): void {
+	private handleResultSet(event: any): void {
 		// Clone the data before altering it to avoid impacting other subscribers
 		let resultSet = Object.assign({}, event.data);
 
@@ -224,7 +218,7 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 			maxHeight: maxHeight,
 			minHeight: minHeight,
 			dataRows: new VirtualizedCollection(
-				self.windowSize,
+				windowSize,
 				resultSet.rowCount,
 				this.loadDataFunction,
 				index => { return { values: [] }; }
@@ -240,24 +234,24 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 						: escape(c.columnName),
 					field: i.toString(),
 					formatter: isLinked ? Services.hyperLinkFormatter : Services.textFormatter,
-					asyncPostRender: isLinked ? self.linkHandler(linkType) : undefined,
+					asyncPostRender: isLinked ? this.linkHandler(linkType) : undefined,
 					isEditable: c.isUpdatable
 				};
 			}))
 		};
-		self.plugins.push([rowNumberColumn, new AutoColumnSize(), new AdditionalKeyBindings()]);
-		self.dataSet = dataSet;
+		this.plugins.push([rowNumberColumn, new AutoColumnSize(), new AdditionalKeyBindings()]);
+		this.dataSet = dataSet;
 
 		// Create a dataSet to render without rows to reduce DOM size
 		let undefinedDataSet = clone(dataSet);
 		undefinedDataSet.columnDefinitions = dataSet.columnDefinitions;
 		undefinedDataSet.dataRows = undefined;
 		undefinedDataSet.resized = new EventEmitter();
-		self.placeHolderDataSets.push(undefinedDataSet);
-		self.onScroll(0);
+		this.placeHolderDataSets.push(undefinedDataSet);
+		this.onScroll(0);
 
 		// Setup the state of the selected cell
-		this.currentCell = { row: null, column: null, isEditable: null };
+		this.currentCell = { row: null, column: null };
 		this.currentEditCellValue = null;
 		this.removingNewRow = false;
 		this.newRowVisible = false;
@@ -291,7 +285,7 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 					setActive();
 				});
 			}
-		}, self.scrollTimeOutTime);
+		}, scrollTimeOutTime);
 	}
 
 	protected tryHandleKeyEvent(e: StandardKeyboardEvent): boolean {
@@ -390,7 +384,7 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 				self.dataSet.maxHeight = self.getMaxHeight(this.dataSet.totalRows);
 				self.dataSet.minHeight = self.getMinHeight(this.dataSet.totalRows);
 				self.dataSet.dataRows = new VirtualizedCollection(
-					self.windowSize,
+					windowSize,
 					self.dataSet.totalRows,
 					self.loadDataFunction,
 					index => { return { values: [] }; }
@@ -402,7 +396,7 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 				// Mark the row as dirty once the scroll has completed
 				setTimeout(() => {
 					self.setRowDirtyState(row, true);
-				}, self.scrollTimeOutTime);
+				}, scrollTimeOutTime);
 			});
 	}
 
@@ -412,7 +406,7 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 		// Removing the new row
 		this.dataSet.totalRows--;
 		this.dataSet.dataRows = new VirtualizedCollection(
-			this.windowSize,
+			windowSize,
 			this.dataSet.totalRows,
 			this.loadDataFunction,
 			index => { return { values: [] }; }
@@ -427,7 +421,7 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 				this.focusCell(row, 0);
 			}
 			this.removingNewRow = false;
-		}, this.scrollTimeOutTime);
+		}, scrollTimeOutTime);
 	}
 
 	private focusCell(row: number, column: number, forceEdit: boolean = true): void {
@@ -453,25 +447,24 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 	protected onCellChange(event: Slick.OnCellChangeEventArgs<any>): void {
 		let newValue = event.item[this.dataSet.columnDefinitions[event.cell].id];
 		// Store the value that was set
-		this.dataService.updateCell(event.row, event.cell - 1, newValue)
-			.then(
-				result => {
-					// Cell update was successful, update the flags
-					this.currentEditCellValue = null;
-					this.setCellDirtyState(event.row, event.cell, result.cell.isDirty);
-					this.setRowDirtyState(event.row, result.isRowDirty);
-					return Promise.resolve();
-				}, error => {
-					// Cell update failed, jump back to the last cell we were on
-					this.focusCell(event.row, event.cell, true);
-					return Promise.reject(null);
-				}
-			);
+		this.editQueue.queue(() => {
+			return TPromise.wrap(this.dataService.updateCell(event.row, event.cell - 1, newValue)
+				.then(
+					result => {
+						// Cell update was successful, update the flags
+						this.currentEditCellValue = null;
+						this.setCellDirtyState(event.row, event.cell, result.cell.isDirty);
+						this.setRowDirtyState(event.row, result.isRowDirty);
+					}, error => {
+						// Cell update failed, jump back to the last cell we were on
+						this.focusCell(event.row, event.cell, true);
+					}
+				));
+		});
 		this.currentEditCellValue = newValue;
 	}
 
 	protected onBeforeEditCell(event: Slick.OnBeforeEditCellEventArgs<any>): void {
-
 	}
 
 	protected isCellEditValid(): boolean {
@@ -493,52 +486,54 @@ export class EditDataComponent extends GridParentComponent implements OnInit, On
 			return;
 		}
 
-		let cellSelectTasks: Promise<void> = Promise.resolve();
-
 		if (this.currentCell.row !== row) {
 			// If we're currently adding a new row, only commit it if it has changes or the user is trying to add another new row
 			if (this.newRowVisible && this.currentCell.row === this.dataSet.dataRows.getLength() - 2 && !this.isNullRow(row) && this.currentEditCellValue === null) {
-				cellSelectTasks = cellSelectTasks.then(() => {
-					return this.revertCurrentRow().then(() => this.focusCell(row, column));
+				this.editQueue.queue(() => {
+					return TPromise.wrap(this.revertCurrentRow().then(() => this.focusCell(row, column)));
 				});
 			} else {
 				// We're changing row, commit the changes
-				cellSelectTasks = cellSelectTasks.then(() => {
-					return this.dataService.commitEdit().then(result => {
+				this.editQueue.queue(() => {
+					return TPromise.wrap(this.dataService.commitEdit().then(result => {
 						// Committing was successful, clean the grid
 						this.setGridClean();
 						this.rowIdMappings = {};
 						this.newRowVisible = false;
-						return Promise.resolve();
 					}, error => {
 						// Committing failed, jump back to the last selected cell
 						this.focusCell(this.currentCell.row, this.currentCell.column);
-						return Promise.reject(null);
-					});
+					}));
 				});
 			}
 		}
 
 		if (this.isNullRow(row) && !this.removingNewRow) {
 			// We've entered the "new row", so we need to add a row and jump to it
-			cellSelectTasks = cellSelectTasks.then(() => {
+			this.editQueue.queue(() => {
 				this.addRow(row);
+				return TPromise.as(undefined);
 			});
 		}
 
 		// At the end of a successful cell select, update the currently selected cell
-		cellSelectTasks = cellSelectTasks.then(() => {
+		this.editQueue.queue(() => {
 			this.currentCell = {
 				row: row,
-				column: column,
-				isEditable: this.dataSet.columnDefinitions[column]
-					? this.dataSet.columnDefinitions[column].isEditable
-					: false
+				column: column
 			};
+			return TPromise.wrap(undefined);
 		});
+	}
 
-		// Cap off any failed promises, since they'll be handled
-		cellSelectTasks.catch(() => { });
+	protected overrideCellFn(rowNumber, columnId, value?, data?): string {
+		let returnVal = '';
+		if (Services.DBCellValue.isDBCellValue(value)) {
+			returnVal = value.displayValue;
+		} else if (typeof value === 'string') {
+			returnVal = value;
+		}
+		return returnVal;
 	}
 
 	//#endregion
