@@ -485,6 +485,11 @@ declare module 'sqlops' {
 		 * The languge mode for this text editor. The language mode is SQL by default.
 		 */
 		languageMode?: string
+		/**
+		 * Optional amount to reduce width by, since it's hard for parent actions like adding a margin
+		 * to be reflected in the detected size for this component
+		 */
+		widthReduction?: string
 	}
 
 	export interface ButtonProperties extends ComponentProperties, ComponentWithIcon {

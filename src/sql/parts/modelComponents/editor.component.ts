@@ -33,7 +33,7 @@ export default class EditorComponent extends ComponentBase implements IComponent
 	private _editorInput: UntitledEditorInput;
 	private _editorModel: ITextModel;
 	private _renderedContent: string;
-	private _langaugeMode: string;
+	private _languageMode: string;
 
 	constructor(
 		@Inject(forwardRef(() => ChangeDetectorRef)) changeRef: ChangeDetectorRef,
@@ -76,9 +76,13 @@ export default class EditorComponent extends ComponentBase implements IComponent
 
 	public layout(): void {
 		let width: number = this.convertSizeToNumber(this.width);
+		if (width === 0) {
+			let widthReduction: number = this.convertSizeToNumber(this.widthReduction);
+			width = DOM.getContentWidth(this._el.nativeElement) - widthReduction;
+		}
 		let height: number = this.convertSizeToNumber(this.height);
 		this._editor.layout(new DOM.Dimension(
-			width && width > 0 ? width : DOM.getContentWidth(this._el.nativeElement),
+			width,
 			height && height > 0 ? height : DOM.getContentHeight(this._el.nativeElement)));
 	}
 
@@ -92,8 +96,8 @@ export default class EditorComponent extends ComponentBase implements IComponent
 
 	private updateLanguageMode() {
 		if (this._editorModel && this._editor) {
-			this._langaugeMode = this.languageMode;
-			this._modeService.getOrCreateMode(this._langaugeMode).then((modeValue) => {
+			this._languageMode = this.languageMode;
+			this._modeService.getOrCreateMode(this._languageMode).then((modeValue) => {
 				this._modelService.setMode(this._editorModel, modeValue);
 			});
 		}
@@ -111,7 +115,7 @@ export default class EditorComponent extends ComponentBase implements IComponent
 		if (this.content !== this._renderedContent) {
 			this.updateModel();
 		}
-		if (this.languageMode !== this._langaugeMode) {
+		if (this.languageMode !== this._languageMode) {
 			this.updateLanguageMode();
 		}
 	}
@@ -131,5 +135,13 @@ export default class EditorComponent extends ComponentBase implements IComponent
 
 	public set languageMode(newValue: string) {
 		this.setPropertyFromUI<sqlops.EditorProperties, string>((properties, languageMode) => { properties.languageMode = languageMode; }, newValue);
+	}
+
+	public get widthReduction(): string {
+		return this.getPropertyOrDefault<sqlops.EditorProperties, string>((props) => props.widthReduction, undefined);
+	}
+
+	public set widthReduction(newValue: string) {
+		this.setPropertyFromUI<sqlops.EditorProperties, string>((properties, widthReduction) => { properties.languoffsetMarginageMode = widthReduction; }, newValue);
 	}
 }
