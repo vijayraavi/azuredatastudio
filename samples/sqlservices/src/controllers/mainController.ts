@@ -425,6 +425,18 @@ export default class MainController implements vscode.Disposable {
 	private openEditorWithWebview(html1: string, html2: string): void {
 		let editor = sqlops.workspace.createModelViewEditor('Editor webview', { retainContextWhenHidden: true });
 		editor.registerContent(async view => {
+			let inputBox = view.modelBuilder.inputBox().component();
+			let runIcon = path.join(__dirname, '..', 'media', 'start.svg');
+			let runButton = view.modelBuilder.button()
+				.withProperties({
+					label: 'Run',
+					iconPath: runIcon
+				}).component();
+			let toolbarModel = view.modelBuilder.toolbarContainer()
+				.withToolbarItems([{
+					component: runButton
+				}]).component();
+
 			let count = 0;
 			let webview1 = view.modelBuilder.webView()
 				.withProperties({
@@ -443,7 +455,8 @@ export default class MainController implements vscode.Disposable {
 
 			let editor1 = view.modelBuilder.editor()
 				.withProperties({
-					content: 'select * from sys.tables'
+					content: '# SQL Operations Studio',
+					languageMode: 'markdown'
 				})
 				.component();
 
@@ -454,9 +467,22 @@ export default class MainController implements vscode.Disposable {
 				})
 				.component();
 
+			runButton.onDidClick(() => {
+				vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(editor1.editorUri));
+			});
+
+			let mainFlexModel = view.modelBuilder.flexContainer().component();
+			mainFlexModel.addItem(editor1, { flex: '1' });
+			mainFlexModel.addItem(editor2, { flex: '1' });
+			mainFlexModel.setLayout({
+				flexFlow: 'column',
+				alignItems: 'stretch',
+				height: '100%'
+			});
+
 			let flexModel = view.modelBuilder.flexContainer().component();
-			flexModel.addItem(editor1, { flex: '1' });
-			flexModel.addItem(editor2, { flex: '1' });
+			flexModel.addItem(toolbarModel, { flex: '0' });
+			flexModel.addItem(mainFlexModel, { flex: '1' });
 			flexModel.setLayout({
 				flexFlow: 'column',
 				alignItems: 'stretch',

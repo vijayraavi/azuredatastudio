@@ -1,0 +1,25 @@
+{
+    "name": "@types/highlight.js",
+    "version": "9.1.10",
+    "description": "TypeScript definitions for highlight.js",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Niklas Mollenhauer",
+            "url": "https://github.com/nikeee"
+        },
+        {
+            "name": "Jeremy Hull",
+            "url": "https://github.com/sourrust"
+        }
+    ],
+    "main": "",
+    "repository": {
+        "type": "git",
+        "url": "https://www.github.com/DefinitelyTyped/DefinitelyTyped.git"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "5a7160bb79bac1bdab31814d6de66d5c95ed8458b4b5ca4b121fff02daa805d3",
+    "typeScriptVersion": "2.0"
+}
