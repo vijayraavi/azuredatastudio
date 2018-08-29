@@ -19,7 +19,7 @@ import { IEnvironmentService } from 'vs/platform/environment/common/environment'
 import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 
-export class MarkdownPreview  extends Disposable {
+export class MarkdownPreview extends Disposable {
 
 	private _resource: vscode.Uri;
 	private _locked: boolean;
