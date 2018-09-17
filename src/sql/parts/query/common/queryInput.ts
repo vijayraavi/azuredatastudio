@@ -3,7 +3,7 @@
  *  Licensed under the Source EULA. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { EditorInput, EditorModel } from 'vs/workbench/common/editor';
+import { EditorInput } from 'vs/workbench/common/editor';
 import { IEditorModel } from 'vs/platform/editor/common/editor';
 import { TPromise } from 'vs/base/common/winjs.base';
 
@@ -13,7 +13,7 @@ export class QueryInput extends EditorInput {
 
 	public getTypeId(): string { return QueryInput.ID; }
 
-	public resolve(): TPromise<EditorModel> { }
+	public resolve(): TPromise<IEditorModel> { }
 
 	public supportsSplitEditor(): boolean { return false; }
 }
