@@ -7,13 +7,47 @@ import { EditorInput } from 'vs/workbench/common/editor';
 import { IEditorModel } from 'vs/platform/editor/common/editor';
 import { TPromise } from 'vs/base/common/winjs.base';
 
+import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
+
 export class QueryInput extends EditorInput {
 	public static readonly ID: string = 'workbench.editorinputs.queryInput';
 	public static readonly SCHEMA: string = 'sql';
 
+	constructor(
+		private name: string, private description: string, private _text: EditorInput, private _results: QueryResultsInput
+	) {
+		super();
+	}
+
+	get text(): EditorInput {
+		return this._text;
+	}
+
+	get results(): QueryResultsInput {
+		return this._results;
+	}
+
 	public getTypeId(): string { return QueryInput.ID; }
-
-	public resolve(): TPromise<IEditorModel> { }
-
 	public supportsSplitEditor(): boolean { return false; }
+
+	public resolve(): TPromise<IEditorModel> {
+		return TPromise.as(null);
+	}
+
+	matches(otherInput: any): boolean {
+		if (super.matches(otherInput) === true) {
+			return true;
+		}
+
+		if (otherInput) {
+			if (!(otherInput instanceof QueryInput)) {
+				return false;
+			}
+
+			const otherDiffInput = <QueryInput>otherInput;
+			return this.text.matches(otherDiffInput.text);
+		}
+
+		return false;
+	}
 }

@@ -622,13 +622,14 @@ export class EditorGroup extends Disposable {
 		let serializedEditors: ISerializedEditorInput[] = [];
 		let serializablePreviewIndex: number;
 		// {{SQL CARBON EDIT}}
-		let editors = this.editors.map(e => {
-			if (e instanceof QueryInput) {
-				return e.sql;
-			}
-			return e;
-		});
-		editors.forEach(e => {
+		// {{EDITOR TODO}}
+		// let editors = this.editors.map(e => {
+		// 	if (e instanceof QueryInput) {
+		// 		return e.sql;
+		// 	}
+		// 	return e;
+		// });
+		this.editors.forEach(e => {
 			let factory = registry.getEditorInputFactory(e.getTypeId());
 			if (factory) {
 				let value = factory.serialize(e);
@@ -644,13 +645,14 @@ export class EditorGroup extends Disposable {
 		});
 
 		// {{SQL CARBON EDIT}}
-		let mru = this.mru.map(e => {
-			if (e instanceof QueryInput) {
-				return e.sql;
-			}
-			return e;
-		});
-		const serializableMru = mru.map(e => this.indexOf(e, serializableEditors)).filter(i => i >= 0);
+		// {{EDITOR TODO}}
+		// let mru = this.mru.map(e => {
+		// 	if (e instanceof QueryInput) {
+		// 		return e.text;
+		// 	}
+		// 	return e;
+		// });
+		const serializableMru = this.mru.map(e => this.indexOf(e, serializableEditors)).filter(i => i >= 0);
 
 		return {
 			id: this.id,

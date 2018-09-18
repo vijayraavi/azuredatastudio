@@ -17,11 +17,11 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 import * as DOM from 'vs/base/browser/dom';
 import * as types from 'vs/base/common/types';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { CancellationToken } from 'vs/base/common/cancellation';
 
 import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
 import { IQueryModelService } from 'sql/parts/query/execution/queryModel';
 import { QueryResultsView } from 'sql/parts/query/editor/queryResultsView';
-import { CancellationToken } from 'vs/base/common/cancellation';
 
 export const RESULTS_GRID_DEFAULTS = {
 	cellPadding: [6, 10, 5],

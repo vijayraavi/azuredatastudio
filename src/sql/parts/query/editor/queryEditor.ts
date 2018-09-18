@@ -14,7 +14,6 @@ import * as DOM from 'vs/base/browser/dom';
 import { EditorOptions } from 'vs/workbench/common/editor';
 import { CancellationToken } from 'vs/base/common/cancellation';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { BaseTextEditor } from 'vs/workbench/browser/parts/editor/textEditor';
 import { Emitter, Event } from 'vs/base/common/event';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
@@ -101,10 +100,6 @@ export class QueryEditor extends BaseEditor {
 		this.splitview.layout(dimension.height);
 	}
 
-	public get input(): QueryInput {
-		return this._input;
-	}
-
 	public setInput(input: QueryInput, options: EditorOptions, token: CancellationToken): Thenable<void> {
 		const oldInput = this.input;
 		super.setInput(input, options, token);
@@ -116,6 +111,11 @@ export class QueryEditor extends BaseEditor {
 		if (EditorRegistry.getEditor(this.input) !== EditorRegistry.getEditor(oldInput)) {
 			this.createTextEditor();
 		}
+
+		return TPromise.join([
+			this.textEditor.setInput(input.text, options, token),
+			this.resultsEditor.setInput(input.results, options)
+		]).then(() => undefined);
 	}
 
 	private createTextEditor() {
@@ -136,8 +136,6 @@ export class QueryEditor extends BaseEditor {
 	}
 
 	private createResultEditor() {
-
-
 		this.splitview.addView({
 			element: this.resultsEditorContainer,
 			layout: size => this.resultsEditor && this.resultsEditor.layout(new DOM.Dimension(this.dimension.width, size)),
