@@ -18,6 +18,7 @@ import { IInsightOptions } from './insights/interfaces';
 import { CopyAction, SaveImageAction, CreateInsightAction, IChartActionContext } from './actions';
 import { Taskbar } from 'sql/base/browser/ui/taskbar/taskbar';
 import { ChartType } from 'sql/parts/dashboard/widgets/insights/views/charts/interfaces';
+
 import { Registry } from 'vs/platform/registry/common/platform';
 import { Dimension, $, getContentHeight, getContentWidth } from 'vs/base/browser/dom';
 import { SelectBox } from 'vs/base/browser/ui/selectBox/selectBox';
@@ -232,7 +233,7 @@ export class ChartView implements IPanelView {
 
 	private updateActionbar() {
 		if (this.insight && this.insight.isCopyable) {
-			this.taskbar.context = { insight: this.insight.insight, options: this.options };
+			this.taskbar.context = { insight: this.insight.insight, options: this.options, uri: this.queryRunner.uri };
 			this.taskbar.setContent([
 				{ action: this._createInsightAction },
 				{ action: this._copyAction },

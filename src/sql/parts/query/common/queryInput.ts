@@ -14,7 +14,7 @@ export class QueryInput extends EditorInput {
 	public static readonly SCHEMA: string = 'sql';
 
 	constructor(
-		private name: string, private description: string, private _text: EditorInput, private _results: QueryResultsInput
+		private _text: EditorInput, private _results: QueryResultsInput
 	) {
 		super();
 	}
@@ -32,6 +32,10 @@ export class QueryInput extends EditorInput {
 
 	public resolve(): TPromise<IEditorModel> {
 		return TPromise.as(null);
+	}
+
+	public uri(): string {
+		return '';
 	}
 
 	matches(otherInput: any): boolean {

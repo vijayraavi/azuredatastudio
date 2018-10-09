@@ -4,6 +4,35 @@
  *--------------------------------------------------------------------------------------------*/
 
 'use strict';
+
+import { EditorDescriptor, IEditorRegistry, Extensions as EditorExtensions } from 'vs/workbench/browser/editor';
+import { Registry } from 'vs/platform/registry/common/platform';
+import { SyncDescriptor } from 'vs/platform/instantiation/common/descriptors';
+
+import { QueryResultsEditor } from 'sql/parts/query/editor/queryResultsEditor';
+import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
+import { QueryEditor } from 'sql/parts/query/editor/queryEditor';
+import { QueryInput } from 'sql/parts/query/common/queryInput';
+
+const queryResultsEditorDescriptor = new EditorDescriptor(
+	QueryResultsEditor,
+	QueryResultsEditor.ID,
+	'QueryResults'
+);
+
+Registry.as<IEditorRegistry>(EditorExtensions.Editors)
+	.registerEditor(queryResultsEditorDescriptor, [new SyncDescriptor(QueryResultsInput)]);
+
+const queryEditorDescriptor = new EditorDescriptor(
+	QueryEditor,
+	QueryEditor.ID,
+	'Query'
+);
+
+Registry.as<IEditorRegistry>(EditorExtensions.Editors)
+	.registerEditor(queryEditorDescriptor, [new SyncDescriptor(QueryInput)]);
+
+/*
 import 'vs/css!sql/media/overwriteVsIcons';
 import { Registry } from 'vs/platform/registry/common/platform';
 import { EditorDescriptor, IEditorRegistry, Extensions as EditorExtensions } from 'vs/workbench/browser/editor';
@@ -408,5 +437,4 @@ configurationRegistry.registerConfiguration({
 	'properties': registryProperties
 });
 
-
-
+*/

@@ -27,6 +27,7 @@ import { IEditorService } from 'vs/workbench/services/editor/common/editorServic
 export interface IChartActionContext {
 	options: IInsightOptions;
 	insight: IInsight;
+	uri: string;
 }
 
 export class CreateInsightAction extends Action {
@@ -43,13 +44,7 @@ export class CreateInsightAction extends Action {
 	}
 
 	public run(context: IChartActionContext): TPromise<boolean> {
-		let uriString: string = this.getActiveUriString();
-		if (!uriString) {
-			this.showError(localize('createInsightNoEditor', 'Cannot create insight as the active editor is not a SQL Editor'));
-			return TPromise.as(false);
-		}
-
-		let uri: URI = URI.parse(uriString);
+		let uri: URI = URI.parse(context.uri);
 		let queryFile: string = uri.fsPath;
 		let query: string = undefined;
 		let type = {};
@@ -87,22 +82,6 @@ export class CreateInsightAction extends Action {
 					return false;
 				}
 			);
-	}
-
-	private getActiveUriString(): string {
-		let editor = this.editorService.activeControl;
-		if (editor && editor instanceof QueryEditor) {
-			let queryEditor: QueryEditor = editor;
-			return queryEditor.uri;
-		}
-		return undefined;
-	}
-
-	private showError(errorMsg: string) {
-		this.notificationService.notify({
-			severity: Severity.Error,
-			message: errorMsg
-		});
 	}
 }
 
@@ -157,7 +136,7 @@ export class SaveImageAction extends Action {
 
 	public run(context: IChartActionContext): TPromise<boolean> {
 		if (context.insight instanceof Graph) {
-			return this.promptForFilepath().then(filePath => {
+			return this.promptForFilepath(context.uri).then(filePath => {
 				let data = (<Graph>context.insight).getCanvasData();
 				if (!data) {
 					this.showError(localize('chartNotFound', 'Could not find chart to save'));
@@ -189,8 +168,8 @@ export class SaveImageAction extends Action {
 		return new Buffer(matches[2], 'base64');
 	}
 
-	private promptForFilepath(): TPromise<string> {
-		let filepathPlaceHolder = PathUtilities.resolveCurrentDirectory(this.getActiveUriString(), PathUtilities.getRootPath(this.workspaceContextService));
+	private promptForFilepath(uri: string): TPromise<string> {
+		let filepathPlaceHolder = PathUtilities.resolveCurrentDirectory(uri, PathUtilities.getRootPath(this.workspaceContextService));
 		filepathPlaceHolder = join(filepathPlaceHolder, 'chart.png');
 		return this.windowService.showSaveDialog({
 			title: localize('chartViewer.saveAsFileTitle', 'Choose Results File'),
@@ -203,14 +182,5 @@ export class SaveImageAction extends Action {
 			severity: Severity.Error,
 			message: errorMsg
 		});
-	}
-
-	private getActiveUriString(): string {
-		let editor = this.editorService.activeControl;
-		if (editor && editor instanceof QueryEditor) {
-			let queryEditor: QueryEditor = editor;
-			return queryEditor.uri;
-		}
-		return undefined;
 	}
 }

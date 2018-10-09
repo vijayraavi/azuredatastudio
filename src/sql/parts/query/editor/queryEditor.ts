@@ -51,6 +51,10 @@ export class QueryEditor extends BaseEditor {
 		super(QueryEditor.ID, telemetryService, themeService);
 	}
 
+	public get input(): QueryInput {
+		return this._input as QueryInput;
+	}
+
 	protected createEditor(parent: HTMLElement): void {
 		DOM.addClass(parent, 'query-editor');
 
@@ -71,7 +75,7 @@ export class QueryEditor extends BaseEditor {
 		this.resultsEditorContainer = DOM.$('.results-editor-container');
 		this.resultsEditor = this._register(this.instantiationService.createInstance(QueryResultsEditor));
 		this.resultsEditor.create(this.resultsEditorContainer);
-		(<CodeEditorWidget>this.resultsEditor.getControl()).onDidFocusEditorWidget(() => this.lastFocusedEditor = this.resultsEditor);
+		// (<CodeEditorWidget>this.resultsEditor.getControl()).onDidFocusEditorWidget(() => this.lastFocusedEditor = this.resultsEditor);
 
 		/*
 		this._register(attachStylerCallback(this.themeService, { scrollbarShadow }, colors => {
@@ -108,7 +112,7 @@ export class QueryEditor extends BaseEditor {
 			return TPromise.as(undefined);
 		}
 
-		if (EditorRegistry.getEditor(this.input) !== EditorRegistry.getEditor(oldInput)) {
+		if (!oldInput || EditorRegistry.getEditor(this.input) !== EditorRegistry.getEditor(oldInput)) {
 			this.createTextEditor();
 		}
 
@@ -125,7 +129,7 @@ export class QueryEditor extends BaseEditor {
 		}
 
 		$(this.textEditorContainer).empty();
-		let descriptor = EditorRegistry.getEditor(this.input);
+		let descriptor = EditorRegistry.getEditor(this.input.text);
 		if (!descriptor) {
 			return;
 		}
