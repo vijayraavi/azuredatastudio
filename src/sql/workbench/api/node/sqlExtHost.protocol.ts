@@ -36,7 +36,7 @@ export abstract class ExtHostAccountManagementShape {
 
 export abstract class ExtHostConnectionManagementShape {
 	$onConnectionOpened(handleId: string, connection: sqlops.connection.Connection): void { throw ni; }
- }
+}
 
 export abstract class ExtHostDataProtocolShape {
 
@@ -371,6 +371,11 @@ export abstract class ExtHostDataProtocolShape {
 	$deleteJob(handle: number, ownerUri: string, job: sqlops.AgentJobInfo): Thenable<sqlops.ResultStatus> { throw ni(); }
 
 	/**
+	 * Deletes a job step
+	 */
+	$deleteJobStep(handle: number, ownerUri: string, step: sqlops.AgentJobStepInfo): Thenable<sqlops.ResultStatus> { throw ni(); }
+
+	/**
 	 * Get Agent Alerts list
 	 */
 	$getAlerts(handle: number, connectionUri: string): Thenable<sqlops.AgentAlertsResult> { throw ni(); }
@@ -663,6 +668,7 @@ export interface MainThreadObjectExplorerShape extends IDisposable {
 	$getChildren(connectionId: string, nodePath: string): Thenable<sqlops.NodeInfo[]>;
 	$isExpanded(connectionId: string, nodePath: string): Thenable<boolean>;
 	$findNodes(connectionId: string, type: string, schema: string, name: string, database: string, parentObjectNames: string[]): Thenable<sqlops.NodeInfo[]>;
+	$refresh(connectionId: string, nodePath: string): Thenable<sqlops.NodeInfo>;
 }
 
 export interface ExtHostModelViewDialogShape {

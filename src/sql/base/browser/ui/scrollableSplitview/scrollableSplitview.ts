@@ -34,6 +34,8 @@ export interface IView extends HeightIView {
 	readonly onDidChange: Event<number | undefined>;
 	render(container: HTMLElement, orientation: Orientation): void;
 	layout(size: number, orientation: Orientation): void;
+	onAdd?(): void;
+	onRemove?(): void;
 }
 
 interface ISashEvent {
@@ -48,6 +50,8 @@ interface IViewItem extends HeightIViewItem {
 	container: HTMLElement;
 	disposable: IDisposable;
 	layout(): void;
+	onRemove: () => void;
+	onAdd: () => void;
 }
 
 interface ISashItem {
@@ -109,6 +113,9 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 	private _onDidSashReset = new Emitter<void>();
 	readonly onDidSashReset = this._onDidSashReset.event;
 
+	private _onScroll = new Emitter<number>();
+	readonly onScroll = this._onScroll.event;
+
 	get length(): number {
 		return this.viewItems.length;
 	}
@@ -124,6 +131,7 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 		debounceEvent(this.scrollable.onScroll, (l, e) => e, 25)(e => {
 			this.render(e.scrollTop, e.height);
 			this.relayout();
+			this._onScroll.fire(e.scrollTop);
 		});
 		let domNode = this.scrollable.getDomNode();
 		dom.addClass(this.el, 'monaco-scroll-split-view');
@@ -155,6 +163,9 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 			});
 			const disposable = combinedDisposable([onChangeDisposable, containerDisposable]);
 
+			const onAdd = view.onAdd ? () => view.onAdd() : () => { };
+			const onRemove = view.onRemove ? () => view.onRemove() : () => { };
+
 			const layoutContainer = this.orientation === Orientation.VERTICAL
 				? size => item.container.style.height = `${item.size}px`
 				: size => item.container.style.width = `${item.size}px`;
@@ -165,7 +176,7 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 			};
 
 			size = Math.round(size);
-			const item: IViewItem = { view, container, size, layout, disposable, height: size, top: 0, width: 0 };
+			const item: IViewItem = { onRemove, onAdd, view, container, size, layout, disposable, height: size, top: 0, width: 0 };
 			this.viewItems.splice(viewIndex, 0, item);
 
 			this.onInsertItems(new ArrayIterator([item]), viewIndex > 0 ? this.viewItems[viewIndex - 1].view.id : undefined);
@@ -220,6 +231,9 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 		});
 		const disposable = combinedDisposable([onChangeDisposable, containerDisposable]);
 
+		const onAdd = view.onAdd ? () => view.onAdd() : () => { };
+		const onRemove = view.onRemove ? () => view.onRemove() : () => { };
+
 		const layoutContainer = this.orientation === Orientation.VERTICAL
 			? size => item.container.style.height = `${item.size}px`
 			: size => item.container.style.width = `${item.size}px`;
@@ -230,7 +244,7 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 		};
 
 		size = Math.round(size);
-		const item: IViewItem = { view, container, size, layout, disposable, height: size, top: 0, width: 0 };
+		const item: IViewItem = { onAdd, onRemove, view, container, size, layout, disposable, height: size, top: 0, width: 0 };
 		this.viewItems.splice(index, 0, item);
 
 		this.onInsertItems(new ArrayIterator([item]), index > 0 ? this.viewItems[index - 1].view.id : undefined);
@@ -328,6 +342,10 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 	private relayout(lowPriorityIndex?: number): void {
 		const contentSize = this.viewItems.reduce((r, i) => r + i.size, 0);
 		this.resize(this.viewItems.length - 1, this.size - contentSize, undefined, lowPriorityIndex);
+	}
+
+	public setScrollPosition(position: number) {
+		this.scrollable.setScrollPosition({ scrollTop: position });
 	}
 
 	layout(size: number): void {
@@ -487,6 +505,8 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 		}
 
 		item.layout();
+
+		item.onAdd();
 		return true;
 	}
 
@@ -496,6 +516,8 @@ export class ScrollableSplitView extends HeightMap implements IDisposable {
 		}
 
 		this.el.removeChild(item.container);
+
+		item.onRemove();
 		return true;
 	}
 

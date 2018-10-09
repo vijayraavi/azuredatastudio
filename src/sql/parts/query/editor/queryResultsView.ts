@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
+import { QueryResultsInput, ResultsViewState } from 'sql/parts/query/common/queryResultsInput';
 import { TabbedPanel, IPanelTab, IPanelView } from 'sql/base/browser/ui/panel/panel';
 import { IQueryModelService } from '../execution/queryModel';
 import QueryRunner from 'sql/parts/query/execution/queryRunner';
@@ -14,11 +14,11 @@ import { ChartTab } from './charting/chartTab';
 import { QueryPlanTab } from 'sql/parts/queryPlan/queryPlan';
 
 import * as nls from 'vs/nls';
-import * as UUID from 'vs/base/common/uuid';
 import { PanelViewlet } from 'vs/workbench/browser/parts/views/panelViewlet';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import * as DOM from 'vs/base/browser/dom';
-import { once } from 'vs/base/common/event';
+import { once, anyEvent } from 'vs/base/common/event';
+import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 
 class ResultsView implements IPanelView {
 	private panelViewlet: PanelViewlet;
@@ -26,61 +26,72 @@ class ResultsView implements IPanelView {
 	private messagePanel: MessagePanel;
 	private container = document.createElement('div');
 	private currentDimension: DOM.Dimension;
-	private isGridRendered = false;
 	private needsGridResize = false;
-	private lastGridHeight: number;
+	private _state: ResultsViewState;
 
-	constructor(instantiationService: IInstantiationService) {
-		this.panelViewlet = instantiationService.createInstance(PanelViewlet, 'resultsView', { showHeaderInTitleWhenSingleView: false });
-		this.gridPanel = instantiationService.createInstance(GridPanel, { title: nls.localize('gridPanel', 'Results'), id: 'gridPanel' });
-		this.messagePanel = instantiationService.createInstance(MessagePanel, { title: nls.localize('messagePanel', 'Messages'), minimumBodySize: 0, id: 'messagePanel' });
+	constructor(private instantiationService: IInstantiationService) {
+
+		this.panelViewlet = this.instantiationService.createInstance(PanelViewlet, 'resultsView', { showHeaderInTitleWhenSingleView: false });
+		this.gridPanel = this.instantiationService.createInstance(GridPanel, { title: nls.localize('gridPanel', 'Results'), id: 'gridPanel' });
+		this.messagePanel = this.instantiationService.createInstance(MessagePanel, { title: nls.localize('messagePanel', 'Messages'), minimumBodySize: 0, id: 'messagePanel' });
 		this.gridPanel.render();
 		this.messagePanel.render();
 		this.panelViewlet.create(this.container).then(() => {
+			this.gridPanel.setVisible(false);
 			this.panelViewlet.addPanels([
 				{ panel: this.messagePanel, size: this.messagePanel.minimumSize, index: 1 }
 			]);
 		});
-		this.gridPanel.onDidChange(e => {
+		anyEvent(this.gridPanel.onDidChange, this.messagePanel.onDidChange)(e => {
 			let size = this.gridPanel.maximumBodySize;
-			if (this.isGridRendered) {
-				if (size < 1) {
-					this.lastGridHeight = this.panelViewlet.getPanelSize(this.gridPanel);
-					this.panelViewlet.removePanels([this.gridPanel]);
-					// tell the panel is has been removed.
-					this.gridPanel.layout(0);
-					this.isGridRendered = false;
-				}
-			} else {
-				if (this.currentDimension) {
-					this.needsGridResize = false;
-					if (size > 0) {
-						this.panelViewlet.addPanels([
-							{ panel: this.gridPanel, index: 0, size: this.lastGridHeight || Math.round(this.currentDimension.height * .7) }
-						]);
-						this.isGridRendered = true;
-					}
+			if (size < 1 && this.gridPanel.isVisible()) {
+				this.gridPanel.setVisible(false);
+				this.panelViewlet.removePanels([this.gridPanel]);
+				this.gridPanel.layout(0);
+			} else if (size > 0 && !this.gridPanel.isVisible()) {
+				this.gridPanel.setVisible(true);
+				let panelSize: number;
+				if (this.state && this.state.gridPanelSize) {
+					panelSize = this.state.gridPanelSize;
+				} else if (this.currentDimension) {
+					panelSize = Math.round(this.currentDimension.height * .7);
 				} else {
-					this.panelViewlet.addPanels([
-						{ panel: this.gridPanel, index: 0, size: this.lastGridHeight || 200 }
-					]);
-					this.isGridRendered = true;
+					panelSize = 200;
 					this.needsGridResize = true;
 				}
+				this.panelViewlet.addPanels([{ panel: this.gridPanel, index: 0, size: panelSize }]);
 			}
 		});
-		let gridResizeList = this.gridPanel.onDidChange(e => {
-			if (this.currentDimension) {
-				this.needsGridResize = false;
-				this.panelViewlet.resizePanel(this.gridPanel, Math.round(this.currentDimension.height * .7));
+		let resizeList = anyEvent(this.gridPanel.onDidChange, this.messagePanel.onDidChange)(() => {
+			let panelSize: number;
+			if (this.state && this.state.gridPanelSize) {
+				panelSize = this.state.gridPanelSize;
+			} else if (this.currentDimension) {
+				panelSize = Math.round(this.currentDimension.height * .7);
 			} else {
+				panelSize = 200;
 				this.needsGridResize = true;
 			}
-		});
+			if (this.state.messagePanelSize) {
+				this.panelViewlet.resizePanel(this.gridPanel, this.state.messagePanelSize);
+			}
+			this.panelViewlet.resizePanel(this.gridPanel, panelSize);
+		})
 		// once the user changes the sash we should stop trying to resize the grid
 		once(this.panelViewlet.onDidSashChange)(e => {
 			this.needsGridResize = false;
-			gridResizeList.dispose();
+			resizeList.dispose();
+		});
+
+		this.panelViewlet.onDidSashChange(e => {
+			if (this.state) {
+				if (this.gridPanel.isExpanded()) {
+					this.state.gridPanelSize = this.panelViewlet.getPanelSize(this.gridPanel);
+				}
+				if (this.messagePanel.isExpanded()) {
+					this.state.messagePanelSize = this.panelViewlet.getPanelSize(this.messagePanel);
+				}
+			}
 		});
 	}
 
@@ -96,7 +107,7 @@ class ResultsView implements IPanelView {
 		}
 		this.currentDimension = dimension;
 		if (this.needsGridResize) {
-			this.panelViewlet.resizePanel(this.gridPanel, Math.round(this.currentDimension.height * .7));
+			this.panelViewlet.resizePanel(this.gridPanel, this.state.gridPanelSize || Math.round(this.currentDimension.height * .7));
 		}
 	}
 
@@ -112,11 +123,21 @@ class ResultsView implements IPanelView {
 	public hideResultHeader() {
 		this.gridPanel.headerVisible = false;
 	}
+
+	public set state(val: ResultsViewState) {
+		this._state = val;
+		this.gridPanel.state = val.gridPanelState;
+		this.messagePanel.state = val.messagePanelState;
+	}
+
+	public get state(): ResultsViewState {
+		return this._state;
+	}
 }
 
 class ResultsTab implements IPanelTab {
 	public readonly title = nls.localize('resultsTabTitle', 'Results');
-	public readonly identifier = UUID.generateUuid();
+	public readonly identifier = 'resultsTab';
 	public readonly view: ResultsView;
 
 	constructor(instantiationService: IInstantiationService) {
@@ -135,6 +156,8 @@ export class QueryResultsView {
 	private chartTab: ChartTab;
 	private qpTab: QueryPlanTab;
 
+	private runnerDisposables: IDisposable[];
+
 	constructor(
 		container: HTMLElement,
 		@IInstantiationService instantiationService: IInstantiationService,
@@ -144,6 +167,12 @@ export class QueryResultsView {
 		this.chartTab = new ChartTab(instantiationService);
 		this._panelView = new TabbedPanel(container, { showHeaderWhenSingleView: false });
 		this.qpTab = new QueryPlanTab();
+		this._panelView.pushTab(this.resultsTab);
+		this._panelView.onTabChange(e => {
+			if (this.input) {
+				this.input.state.activeTab = e;
+			}
+		});
 	}
 
 	public style() {
@@ -151,11 +180,37 @@ export class QueryResultsView {
 
 	public set input(input: QueryResultsInput) {
 		this._input = input;
+		dispose(this.runnerDisposables);
+		this.runnerDisposables = [];
+		this.resultsTab.view.state = this.input.state;
+		this.qpTab.view.state = this.input.state.queryPlanState;
+		this.chartTab.view.state = this.input.state.chartState;
 		let queryRunner = this.queryModelService._getQueryInfo(input.uri).queryRunner;
 		this.resultsTab.queryRunner = queryRunner;
 		this.chartTab.queryRunner = queryRunner;
-		if (!this._panelView.contains(this.resultsTab)) {
-			this._panelView.pushTab(this.resultsTab);
+		this.runnerDisposables.push(queryRunner.onQueryStart(e => {
+			this.hideChart();
+			this.hidePlan();
+			this.input.state.visibleTabs = new Set();
+			this.input.state.activeTab = this.resultsTab.identifier;
+		}));
+		if (this.input.state.visibleTabs.has(this.chartTab.identifier)) {
+			if (!this._panelView.contains(this.chartTab)) {
+				this._panelView.pushTab(this.chartTab);
+			}
+		}
+		if (this.input.state.visibleTabs.has(this.qpTab.identifier)) {
+			if (!this._panelView.contains(this.qpTab)) {
+				this._panelView.pushTab(this.qpTab);
+			}
+		} else if (queryRunner.isQueryPlan) {
+			let disp = queryRunner.onResultSet(() => {
+				this.showPlan(queryRunner.planXml);
+				disp.dispose();
+			});
+		}
+		if (this.input.state.activeTab) {
+			this._panelView.showTab(this.input.state.activeTab);
 		}
 	}
 
@@ -172,6 +227,7 @@ export class QueryResultsView {
 	}
 
 	public chartData(dataId: { resultId: number, batchId: number }): void {
+		this.input.state.visibleTabs.add(this.chartTab.identifier);
 		if (!this._panelView.contains(this.chartTab)) {
 			this._panelView.pushTab(this.chartTab);
 		}
@@ -180,12 +236,25 @@ export class QueryResultsView {
 		this.chartTab.chart(dataId);
 	}
 
+	public hideChart() {
+		if (this._panelView.contains(this.chartTab)) {
+			this._panelView.removeTab(this.chartTab.identifier);
+		}
+	}
+
 	public showPlan(xml: string) {
+		this.input.state.visibleTabs.add(this.qpTab.identifier);
 		if (!this._panelView.contains(this.qpTab)) {
 			this._panelView.pushTab(this.qpTab);
 		}
 
 		this._panelView.showTab(this.qpTab.identifier);
 		this.qpTab.view.showPlan(xml);
+	}
+
+	public hidePlan() {
+		if (this._panelView.contains(this.qpTab)) {
+			this._panelView.removeTab(this.qpTab.identifier);
+		}
 	}
 }

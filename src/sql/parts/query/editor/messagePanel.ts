@@ -25,10 +25,11 @@ import { OpenMode, ClickBehavior, ICancelableEvent, IControllerOptions } from 'v
 import { WorkbenchTreeController } from 'vs/platform/list/browser/listService';
 import { IMouseEvent } from 'vs/base/browser/mouseEvent';
 import { $ } from 'vs/base/browser/builder';
-import { isArray } from 'vs/base/common/types';
+import { isArray, isUndefinedOrNull } from 'vs/base/common/types';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IEditor } from 'vs/editor/common/editorCommon';
+import { QueryInput } from 'sql/parts/query/common/queryInput';
 
 export interface IResultMessageIntern extends IResultMessage {
 	id?: string;
@@ -59,6 +60,18 @@ const TemplateIds = {
 	ERROR: 'error'
 };
 
+export class MessagePanelState {
+	public scrollPosition: number;
+	public collapsed = false;
+
+	constructor(@IConfigurationService configurationService: IConfigurationService) {
+		let messagesOpenedSettings = configurationService.getValue<boolean>('sql.messagesDefaultOpen');
+		if (!isUndefinedOrNull(messagesOpenedSettings)) {
+			this.collapsed = !messagesOpenedSettings;
+		}
+	}
+}
+
 export class MessagePanel extends ViewletPanel {
 	private ds = new MessageDataSource();
 	private renderer = new MessageRenderer();
@@ -67,6 +80,7 @@ export class MessagePanel extends ViewletPanel {
 	private container = $('div message-tree').getHTMLElement();
 
 	private queryRunnerDisposables: IDisposable[] = [];
+	private _state: MessagePanelState;
 
 	private tree: ITree;
 
@@ -86,6 +100,16 @@ export class MessagePanel extends ViewletPanel {
 			renderer: this.renderer,
 			controller: this.controller
 		}, { keyboardSupport: false });
+		this.tree.onDidScroll(e => {
+			if (this.state) {
+				this.state.scrollPosition = this.tree.getScrollPosition();
+			}
+		});
+		this.onDidChange(e => {
+			if (this.state) {
+				this.state.collapsed = !this.isExpanded();
+			}
+		});
 	}
 
 	protected renderBody(container: HTMLElement): void {
@@ -99,8 +123,12 @@ export class MessagePanel extends ViewletPanel {
 	protected layoutBody(size: number): void {
 		const previousScrollPosition = this.tree.getScrollPosition();
 		this.tree.layout(size);
-		if (previousScrollPosition === 1) {
-			this.tree.setScrollPosition(1);
+		if (this.state && this.state.scrollPosition) {
+			this.tree.setScrollPosition(this.state.scrollPosition);
+		} else {
+			if (previousScrollPosition === 1) {
+				this.tree.setScrollPosition(1);
+			}
 		}
 	}
 
@@ -124,18 +152,36 @@ export class MessagePanel extends ViewletPanel {
 		if (hasError) {
 			this.setExpanded(true);
 		}
-		const previousScrollPosition = this.tree.getScrollPosition();
-		this.tree.refresh(this.model).then(() => {
-			if (previousScrollPosition === 1) {
+		if (this.state.scrollPosition) {
+			this.tree.refresh(this.model).then(() => {
 				this.tree.setScrollPosition(1);
-			}
-		});
+			});
+		} else {
+			const previousScrollPosition = this.tree.getScrollPosition();
+			this.tree.refresh(this.model).then(() => {
+				if (previousScrollPosition === 1) {
+					this.tree.setScrollPosition(1);
+				}
+			});
+		}
+		this.maximumBodySize = this.model.messages.length * 22;
 	}
 
 	private reset() {
 		this.model.messages = [];
 		this.model.totalExecuteMessage = undefined;
 		this.tree.refresh(this.model);
+	}
+
+	public set state(val: MessagePanelState) {
+		this._state = val;
+		if (this.state.scrollPosition) {
+			this.tree.setScrollPosition(this.state.scrollPosition);
+		}
+		this.setExpanded(!this.state.collapsed);
+	}
+	public get state(): MessagePanelState {
+		return this._state;
 	}
 }
 
@@ -257,14 +303,8 @@ export class MessageController extends WorkbenchTreeController {
 		if (element.selection) {
 			let selection: ISelectionData = element.selection;
 			// this is a batch statement
-			let control = this.workbenchEditorService.activeControl.getControl() as IEditor;
-			control.setSelection({
-				startColumn: selection.startColumn + 1,
-				endColumn: selection.endColumn + 1,
-				endLineNumber: selection.endLine + 1,
-				startLineNumber: selection.startLine + 1
-			});
-			control.focus();
+			let input = this.workbenchEditorService.activeEditor as QueryInput;
+			input.updateSelection(selection);
 		}
 
 		return true;

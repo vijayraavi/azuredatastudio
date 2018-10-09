@@ -13,9 +13,9 @@ import * as colors from 'vs/platform/theme/common/colorRegistry';
 import { editorLineNumbers } from 'vs/editor/common/view/editorColorRegistry';
 import { IThemeService, ITheme } from 'vs/platform/theme/common/themeService';
 
-import { ChartType, DataDirection, LegendPosition } from 'sql/parts/dashboard/widgets/insights/views/charts/chartInsight.component';
 import { IInsightData } from 'sql/parts/dashboard/widgets/insights/interfaces';
 import { IInsightOptions, IInsight } from './interfaces';
+import { ChartType, DataDirection, LegendPosition } from 'sql/parts/dashboard/widgets/insights/views/charts/interfaces';
 
 const noneLineGraphs = [ChartType.Doughnut, ChartType.Pie];
 
@@ -149,6 +149,8 @@ export class Graph implements IInsight {
 		let foreground = foregroundColor ? foregroundColor.toString() : null;
 		let gridLinesColor = this._theme.getColor(editorLineNumbers);
 		let gridLines = gridLinesColor ? gridLinesColor.toString() : null;
+		let backgroundColor = this._theme.getColor(colors.editorBackground);
+		let background = backgroundColor ? backgroundColor.toString() : null;
 
 		if (options) {
 			retval.scales = {};
@@ -187,11 +189,19 @@ export class Graph implements IInsight {
 				}];
 			}
 
-			retval.legend = {
+			retval.legend = <ChartJs.ChartLegendOptions>{
 				position: options.legendPosition as ChartJs.PositionType,
-				display: options.legendPosition !== LegendPosition.None
+				display: options.legendPosition !== LegendPosition.None,
+				labels: {
+					fontColor: foreground
+				}
 			};
 		}
+
+		// these are custom options that will throw compile errors
+		(<any>retval).viewArea = {
+			backgroundColor: background
+		};
 
 		return retval;
 	}

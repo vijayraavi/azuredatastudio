@@ -53,7 +53,7 @@ export interface IObjectExplorerService {
 
 	updateObjectExplorerNodes(connectionProfile: IConnectionProfile): Promise<void>;
 
-	deleteObjectExplorerNode(connection: IConnectionProfile): void;
+	deleteObjectExplorerNode(connection: IConnectionProfile): Thenable<void>;
 
 	onUpdateObjectExplorerNodes: Event<ObjectExplorerNodeEventArgs>;
 
@@ -72,6 +72,8 @@ export interface IObjectExplorerService {
 	getActiveConnectionNodes(): TreeNode[];
 
 	getTreeNode(connectionId: string, nodePath: string): Thenable<TreeNode>;
+
+	refreshNodeInView(connectionId: string, nodePath: string): Thenable<TreeNode>;
 }
 
 interface SessionStatus {
@@ -140,16 +142,17 @@ export class ObjectExplorerService implements IObjectExplorerService {
 		});
 	}
 
-	public deleteObjectExplorerNode(connection: IConnectionProfile): void {
+	public deleteObjectExplorerNode(connection: IConnectionProfile): Thenable<void> {
 		let self = this;
 		var connectionUri = connection.id;
 		var nodeTree = this._activeObjectExplorerNodes[connectionUri];
 		if (nodeTree) {
-			self.closeSession(connection.providerName, nodeTree.getSession()).then(() => {
+			return self.closeSession(connection.providerName, nodeTree.getSession()).then(() => {
 				delete self._activeObjectExplorerNodes[connectionUri];
 				delete self._sessions[nodeTree.getSession().sessionId];
 			});
 		}
+		return Promise.resolve();
 	}
 
 	/**
@@ -326,6 +329,21 @@ export class ObjectExplorerService implements IObjectExplorerService {
 	}
 
 	public closeSession(providerId: string, session: sqlops.ObjectExplorerSession): Thenable<sqlops.ObjectExplorerCloseSessionResponse> {
+		// Complete any requests that are still open for the session
+		let sessionStatus = this._sessions[session.sessionId];
+		if (sessionStatus && sessionStatus.nodes) {
+			Object.entries(sessionStatus.nodes).forEach(([nodePath, nodeStatus]: [string, NodeStatus]) => {
+				if (nodeStatus.expandEmitter) {
+					nodeStatus.expandEmitter.fire({
+						sessionId: session.sessionId,
+						nodes: [],
+						nodePath: nodePath,
+						errorMessage: undefined
+					});
+				}
+			});
+		}
+
 		let provider = this._providers[providerId];
 		if (provider) {
 			return provider.closeSession({
@@ -348,7 +366,9 @@ export class ObjectExplorerService implements IObjectExplorerService {
 	}
 
 	public resolveTreeNodeChildren(session: sqlops.ObjectExplorerSession, parentTree: TreeNode): Thenable<TreeNode[]> {
-		return this.expandOrRefreshTreeNode(session, parentTree);
+		// Always refresh the node if it has an error, otherwise expand it normally
+		let needsRefresh = !!parentTree.errorStateMessage;
+		return this.expandOrRefreshTreeNode(session, parentTree, needsRefresh);
 	}
 
 	public refreshTreeNode(session: sqlops.ObjectExplorerSession, parentTree: TreeNode): Thenable<TreeNode[]> {
@@ -474,6 +494,20 @@ export class ObjectExplorerService implements IObjectExplorerService {
 
 	public getActiveConnectionNodes(): TreeNode[] {
 		return Object.values(this._activeObjectExplorerNodes);
+	}
+
+	public async refreshNodeInView(connectionId: string, nodePath: string): Promise<TreeNode> {
+		// Get the tree node and call refresh from the provider
+		let treeNode = await this.getTreeNode(connectionId, nodePath);
+		await this.refreshTreeNode(treeNode.getSession(), treeNode);
+
+		// Get the new tree node, refresh it in the view, and expand it if needed
+		treeNode = await this.getTreeNode(connectionId, nodePath);
+		await this._serverTreeView.refreshElement(treeNode);
+		if (treeNode.children.length > 0) {
+			await treeNode.setExpandedState(TreeItemCollapsibleState.Expanded);
+		}
+		return treeNode;
 	}
 
 	private async setNodeExpandedState(treeNode: TreeNode, expandedState: TreeItemCollapsibleState): Promise<void> {

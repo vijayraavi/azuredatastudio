@@ -10,6 +10,27 @@ import { TPromise } from 'vs/base/common/winjs.base';
 import { EditorInput } from 'vs/workbench/common/editor';
 import { Emitter } from 'vs/base/common/event';
 
+import { GridPanelState } from 'sql/parts/query/editor/gridPanel';
+import { MessagePanelState } from 'sql/parts/query/editor/messagePanel';
+import { QueryPlanState } from 'sql/parts/queryPlan/queryPlan';
+import { ChartState } from 'sql/parts/query/editor/charting/chartView';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+
+export class ResultsViewState {
+	public gridPanelState: GridPanelState = new GridPanelState();
+	public messagePanelState: MessagePanelState = new MessagePanelState(this.configurationService);
+	public chartState: ChartState = new ChartState();
+	public queryPlanState: QueryPlanState = new QueryPlanState();
+	public gridPanelSize: number;
+	public messagePanelSize: number;
+	public activeTab: string;
+	public visibleTabs: Set<string> = new Set<string>();
+
+	constructor(@IConfigurationService private configurationService: IConfigurationService) {
+
+	}
+}
+
 /**
  * Input for the QueryResultsEditor. This input helps with logic for the viewing and editing of
  * data in the results grid.
@@ -29,7 +50,11 @@ export class QueryResultsInput extends EditorInput {
 	public readonly onRestoreViewStateEmitter = new Emitter<void>();
 	public readonly onSaveViewStateEmitter = new Emitter<void>();
 
-	constructor(private _uri: string) {
+	public readonly state = new ResultsViewState(this.configurationService);
+
+	constructor(private _uri: string,
+		@IConfigurationService private configurationService: IConfigurationService
+	) {
 		super();
 		this._visible = false;
 		this._hasBootstrapped = false;
