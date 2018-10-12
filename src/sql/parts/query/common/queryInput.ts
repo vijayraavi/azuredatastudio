@@ -34,7 +34,7 @@ export class QueryInput extends EditorInput {
 		return TPromise.as(null);
 	}
 
-	public uri(): string {
+	public get uri(): string {
 		return '';
 	}
 

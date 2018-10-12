@@ -14,7 +14,6 @@ import { ActionBar } from './actionbar';
 import { Builder, $ } from 'vs/base/browser/builder';
 import { Action, IActionRunner, IAction } from 'vs/base/common/actions';
 import { ActionsOrientation } from 'vs/base/browser/ui/actionbar/actionbar';
-import { IContextMenuProvider } from 'vs/base/browser/ui/dropdown/dropdown';
 import { IToolBarOptions } from 'vs/base/browser/ui/toolbar/toolbar';
 
 /**
@@ -39,7 +38,7 @@ export class Taskbar {
 	private actionBar: ActionBar;
 	private lookupKeybindings: boolean;
 
-	constructor(container: HTMLElement, contextMenuProvider: IContextMenuProvider, options: IToolBarOptions = { orientation: ActionsOrientation.HORIZONTAL }) {
+	constructor(container: HTMLElement, options: IToolBarOptions = { orientation: ActionsOrientation.HORIZONTAL }) {
 		this.options = options;
 		this.lookupKeybindings = typeof this.options.getKeyBinding === 'function' && typeof this.options.getKeyBinding === 'function';
 

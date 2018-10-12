@@ -180,6 +180,7 @@ export class QueryResultsView {
 
 	public set input(input: QueryResultsInput) {
 		this._input = input;
+		/*
 		dispose(this.runnerDisposables);
 		this.runnerDisposables = [];
 		this.resultsTab.view.state = this.input.state;
@@ -212,6 +213,7 @@ export class QueryResultsView {
 		if (this.input.state.activeTab) {
 			this._panelView.showTab(this.input.state.activeTab);
 		}
+		*/
 	}
 
 	public dispose() {

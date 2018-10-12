@@ -90,7 +90,7 @@ export class QueryEditorService implements IQueryEditorService {
 				});
 
 				const queryResultsInput: QueryResultsInput = this._instantiationService.createInstance(QueryResultsInput, docUri.toString());
-				let queryInput: QueryInput = this._instantiationService.createInstance(QueryInput, '', fileInput, queryResultsInput, connectionProviderName);
+				let queryInput: QueryInput = this._instantiationService.createInstance(QueryInput, fileInput, queryResultsInput);
 
 				this._editorService.openEditor(queryInput, { pinned: true })
 					.then((editor) => {

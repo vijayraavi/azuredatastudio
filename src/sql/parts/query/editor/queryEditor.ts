@@ -7,6 +7,8 @@ import 'vs/css!sql/parts/query/editor/media/queryEditor';
 
 import { QueryInput } from 'sql/parts/query/common/queryInput';
 import { QueryResultsEditor } from 'sql/parts/query/editor/queryResultsEditor';
+import { RunQueryAction } from 'sql/parts/query/execution/queryActions';
+import { QueryEditorActionBar } from 'sql/parts/query/editor/queryEditorActionBar';
 
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
 import { SplitView, Orientation, Sizing } from 'vs/base/browser/ui/splitview/splitview';
@@ -18,7 +20,6 @@ import { Emitter, Event } from 'vs/base/common/event';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
-import { CodeEditorWidget } from 'vs/editor/browser/widget/codeEditorWidget';
 import { Registry } from 'vs/platform/registry/common/platform';
 import { IEditorRegistry, Extensions } from 'vs/workbench/browser/editor';
 import { $ } from 'vs/base/browser/builder';
@@ -36,6 +37,7 @@ export class QueryEditor extends BaseEditor {
 	private textEditorContainer: HTMLElement;
 	private resultsEditor: QueryResultsEditor;
 	private resultsEditorContainer: HTMLElement;
+	private taskbar: QueryEditorActionBar;
 
 	private readonly _onFocus: Emitter<void> = new Emitter<void>();
 	readonly onFocus: Event<void> = this._onFocus.event;
@@ -58,7 +60,15 @@ export class QueryEditor extends BaseEditor {
 	protected createEditor(parent: HTMLElement): void {
 		DOM.addClass(parent, 'query-editor');
 
-		this.splitview = new SplitView(parent, { orientation: Orientation.VERTICAL });
+		let splitviewContainer = DOM.$('.query-editor-view');
+
+		let taskbarContainer = DOM.$('.query-editor-taskbar');
+		this.taskbar = this.instantiationService.createInstance(QueryEditorActionBar, taskbarContainer, undefined);
+
+		parent.appendChild(taskbarContainer);
+		parent.appendChild(splitviewContainer);
+
+		this.splitview = new SplitView(splitviewContainer, { orientation: Orientation.VERTICAL });
 		this._register(this.splitview);
 		this._register(this.splitview.onDidSashReset(() => this.splitview.distributeViewSizes()));
 
@@ -101,7 +111,8 @@ export class QueryEditor extends BaseEditor {
 
 	public layout(dimension: DOM.Dimension): void {
 		this.dimension = dimension;
-		this.splitview.layout(dimension.height);
+		// acount for taskbar height
+		this.splitview.layout(dimension.height - DOM.getTotalHeight(this.taskbar.getContainer().getHTMLElement()));
 	}
 
 	public setInput(input: QueryInput, options: EditorOptions, token: CancellationToken): Thenable<void> {
@@ -117,6 +128,7 @@ export class QueryEditor extends BaseEditor {
 		}
 
 		return TPromise.join([
+			this.taskbar.setInput(input),
 			this.textEditor.setInput(input.text, options, token),
 			this.resultsEditor.setInput(input.results, options)
 		]).then(() => undefined);
