@@ -3,8 +3,10 @@
  *  Licensed under the Source EULA. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { ToggleConnectDatabaseAction, ListDatabasesAction, RunQueryAction,
-	ListDatabasesActionItem} from 'sql/parts/query/execution/queryActions';
+import {
+	ToggleConnectDatabaseAction, ListDatabasesAction, RunQueryAction,
+	ListDatabasesActionItem
+} from 'sql/parts/query/execution/queryActions';
 import { Taskbar } from 'sql/base/browser/ui/taskbar/taskbar';
 import { QueryInput } from 'sql/parts/query/common/queryInput';
 
