@@ -19,8 +19,10 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { QueryInput } from 'sql/parts/query/common/queryInput';
 import { EventEmitter } from 'sql/base/common/eventEmitter';
 import { attachEditableDropdownStyler, attachSelectBoxStyler } from 'sql/common/theme/styler';
-import { IConnectionManagementService, IConnectionParams, INewConnectionParams,
-	ConnectionType } from 'sql/parts/connection/common/connectionManagement';
+import {
+	IConnectionManagementService, IConnectionParams, INewConnectionParams,
+	ConnectionType
+} from 'sql/parts/connection/common/connectionManagement';
 import { SelectBox } from 'sql/base/browser/ui/selectBox/selectBox';
 import { Dropdown } from 'sql/base/browser/ui/editableDropdown/dropdown';
 
@@ -251,22 +253,22 @@ export class ListDatabasesActionItem extends EventEmitter implements IActionItem
 
 		this._connectionManagementService.changeDatabase(uri, dbName)
 			.then(
-				result => {
-					if (!result) {
-						this.resetDatabaseName();
-						this._notificationService.notify({
-							severity: Severity.Error,
-							message: nls.localize('changeDatabase.failed', "Failed to change database")
-						});
-					}
-				},
-				error => {
+			result => {
+				if (!result) {
 					this.resetDatabaseName();
 					this._notificationService.notify({
 						severity: Severity.Error,
-						message: nls.localize('changeDatabase.failedWithError', "Failed to change database {0}", error)
+						message: nls.localize('changeDatabase.failed', "Failed to change database")
 					});
+				}
+			},
+			error => {
+				this.resetDatabaseName();
+				this._notificationService.notify({
+					severity: Severity.Error,
+					message: nls.localize('changeDatabase.failedWithError', "Failed to change database {0}", error)
 				});
+			});
 	}
 
 	private getCurrentDatabaseName() {
