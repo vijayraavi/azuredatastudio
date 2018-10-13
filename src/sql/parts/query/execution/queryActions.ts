@@ -6,26 +6,28 @@
 import 'vs/css!sql/parts/query/editor/media/queryActions';
 import * as nls from 'vs/nls';
 import { Builder, $ } from 'vs/base/browser/builder';
-import { Dropdown } from 'sql/base/browser/ui/editableDropdown/dropdown';
 import { Action, IActionItem, IActionRunner } from 'vs/base/common/actions';
-import { EventEmitter } from 'sql/base/common/eventEmitter';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
-import { attachEditableDropdownStyler, attachSelectBoxStyler } from 'sql/common/theme/styler';
-
-import {
-	IConnectionManagementService,
-	IConnectionParams,
-	INewConnectionParams,
-	ConnectionType
-} from 'sql/parts/connection/common/connectionManagement';
+import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
 import { INotificationService } from 'vs/platform/notification/common/notification';
 import Severity from 'vs/base/common/severity';
-import { SelectBox } from 'sql/base/browser/ui/selectBox/selectBox';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+
 import { QueryInput } from 'sql/parts/query/common/queryInput';
+import { EventEmitter } from 'sql/base/common/eventEmitter';
+import { attachEditableDropdownStyler, attachSelectBoxStyler } from 'sql/common/theme/styler';
+import { IConnectionManagementService, IConnectionParams, INewConnectionParams,
+	ConnectionType } from 'sql/parts/connection/common/connectionManagement';
+import { SelectBox } from 'sql/base/browser/ui/selectBox/selectBox';
+import { Dropdown } from 'sql/base/browser/ui/editableDropdown/dropdown';
+
+export interface IQueryActionContext {
+	input: QueryInput;
+	editor: ICodeEditor;
+}
 
 /**
  * Action class that runs a query in the active SQL text document.
@@ -41,7 +43,7 @@ export class RunQueryAction extends Action {
 		this.label = nls.localize('runQueryLabel', 'Run');
 	}
 
-	public run(context: { input: QueryInput }): TPromise<void> {
+	public run(context: IQueryActionContext): TPromise<void> {
 		context.input.runQuery();
 		return TPromise.as(null);
 	}
@@ -82,7 +84,7 @@ export class ToggleConnectDatabaseAction extends Action {
 		this.class = this.connected ? ToggleConnectDatabaseAction.DisconnectClass : ToggleConnectDatabaseAction.ConnectClass;
 	}
 
-	public run(context: { input: QueryInput }): TPromise<void> {
+	public run(context: IQueryActionContext): TPromise<void> {
 		if (this.connected) {
 			// Call disconnectEditor regardless of the connection state and let the ConnectionManagementService
 			// determine if we need to disconnect, cancel an in-progress connection, or do nothing
@@ -123,7 +125,7 @@ export class ListDatabasesActionItem extends EventEmitter implements IActionItem
 
 	public actionRunner: IActionRunner;
 	private _toDispose: IDisposable[];
-	private _context: { input: QueryInput };
+	private _context: IQueryActionContext;
 	private _currentDatabaseName: string;
 	private _isConnected: boolean;
 	private $databaseListDropdown: Builder;
@@ -180,7 +182,7 @@ export class ListDatabasesActionItem extends EventEmitter implements IActionItem
 		}
 	}
 
-	public setActionContext(context: any): void {
+	public setActionContext(context: IQueryActionContext): void {
 		this._context = context;
 	}
 

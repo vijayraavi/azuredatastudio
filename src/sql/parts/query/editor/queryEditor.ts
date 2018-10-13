@@ -13,7 +13,7 @@ import { QueryEditorActionBar } from 'sql/parts/query/editor/queryEditorActionBa
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
 import { SplitView, Orientation, Sizing } from 'vs/base/browser/ui/splitview/splitview';
 import * as DOM from 'vs/base/browser/dom';
-import { EditorOptions } from 'vs/workbench/common/editor';
+import { EditorOptions, IEditorControl } from 'vs/workbench/common/editor';
 import { CancellationToken } from 'vs/base/common/cancellation';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { Emitter, Event } from 'vs/base/common/event';
@@ -107,6 +107,10 @@ export class QueryEditor extends BaseEditor {
 		if (this.lastFocusedEditor) {
 			this.lastFocusedEditor.focus();
 		}
+	}
+
+	public getControl(): IEditorControl {
+		return this.textEditor.getControl();
 	}
 
 	public layout(dimension: DOM.Dimension): void {
