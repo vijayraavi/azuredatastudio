@@ -42,7 +42,6 @@ export class QueryEditor extends BaseEditor {
 	private readonly _onFocus: Emitter<void> = new Emitter<void>();
 	readonly onFocus: Event<void> = this._onFocus.event;
 
-
 	private lastFocusedEditor: BaseEditor;
 
 	constructor(
@@ -63,7 +62,7 @@ export class QueryEditor extends BaseEditor {
 		let splitviewContainer = DOM.$('.query-editor-view');
 
 		let taskbarContainer = DOM.$('.query-editor-taskbar');
-		this.taskbar = this.instantiationService.createInstance(QueryEditorActionBar, taskbarContainer, undefined);
+		this.taskbar = this.instantiationService.createInstance(QueryEditorActionBar, taskbarContainer);
 
 		parent.appendChild(taskbarContainer);
 		parent.appendChild(splitviewContainer);
@@ -127,6 +126,8 @@ export class QueryEditor extends BaseEditor {
 			return TPromise.as(undefined);
 		}
 
+		this.input.onQuery(() => this.addResultsEditor());
+
 		if (!oldInput || EditorRegistry.getEditor(this.input) !== EditorRegistry.getEditor(oldInput)) {
 			this.createTextEditor();
 		}
@@ -155,7 +156,11 @@ export class QueryEditor extends BaseEditor {
 		this.layout(this.dimension);
 	}
 
-	private createResultEditor() {
+	private removeResultsEditor() {
+		this.splitview.removeView(1, Sizing.Distribute);
+	}
+
+	private addResultsEditor() {
 		this.splitview.addView({
 			element: this.resultsEditorContainer,
 			layout: size => this.resultsEditor && this.resultsEditor.layout(new DOM.Dimension(this.dimension.width, size)),

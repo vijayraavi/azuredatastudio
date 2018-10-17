@@ -8,10 +8,14 @@ import { IEditorModel } from 'vs/platform/editor/common/editor';
 import { TPromise } from 'vs/base/common/winjs.base';
 
 import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
+import { Emitter, Event } from 'vs/base/common/event';
 
 export class QueryInput extends EditorInput {
 	public static readonly ID: string = 'workbench.editorinputs.queryInput';
 	public static readonly SCHEMA: string = 'sql';
+
+	private _onQuery = new Emitter();
+	public readonly onQuery = this._onQuery.event;
 
 	constructor(
 		private _text: EditorInput, private _results: QueryResultsInput
@@ -36,6 +40,10 @@ export class QueryInput extends EditorInput {
 
 	public get uri(): string {
 		return '';
+	}
+
+	public runQuery() {
+		this._onQuery.fire();
 	}
 
 	matches(otherInput: any): boolean {
