@@ -6,7 +6,7 @@
 'use strict';
 
 import { TPromise } from 'vs/base/common/winjs.base';
-import { EditorOptions } from 'vs/workbench/common/editor';
+import { EditorOptions, IEditorMemento } from 'vs/workbench/common/editor';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { RawContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
@@ -22,6 +22,8 @@ import { CancellationToken } from 'vs/base/common/cancellation';
 import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
 import { IQueryModelService } from 'sql/parts/query/execution/queryModel';
 import { QueryResultsView } from 'sql/parts/query/editor/queryResultsView';
+import { IStorageService } from 'vs/platform/storage/common/storage';
+import { IEditorGroupsService } from 'vs/workbench/services/group/common/editorGroupsService';
 
 export const RESULTS_GRID_DEFAULTS = {
 	cellPadding: [6, 10, 5],
@@ -82,6 +84,12 @@ function getBareResultsGridInfoStyles(info: BareResultsGridInfo): string {
 	return content;
 }
 
+export interface IQueryResultsEditorViewState {
+
+}
+
+const QUERY_RESULTS_EDITOR_VIEW_STATE_PREFERENCE_KEY = 'queryResultsEditorViewState';
+
 /**
  * Editor associated with viewing and editing the data of a query results grid.
  */
@@ -95,11 +103,15 @@ export class QueryResultsEditor extends BaseEditor {
 	private resultsView: QueryResultsView;
 	private styleSheet = DOM.createStyleSheet();
 
+	private editorMemento: IEditorMemento<IQueryResultsEditorViewState>;
+
 	constructor(
 		@ITelemetryService telemetryService: ITelemetryService,
 		@IThemeService themeService: IThemeService,
+		@IStorageService storageService: IStorageService,
 		@IQueryModelService private _queryModelService: IQueryModelService,
 		@IConfigurationService private _configurationService: IConfigurationService,
+		@IEditorGroupsService protected editorGroupService: IEditorGroupsService,
 		@IInstantiationService private _instantiationService: IInstantiationService
 	) {
 		super(QueryResultsEditor.ID, telemetryService, themeService);
@@ -111,6 +123,7 @@ export class QueryResultsEditor extends BaseEditor {
 			}
 		});
 		this.applySettings();
+		this.editorMemento = this.getEditorMemento<IQueryResultsEditorViewState>(storageService, editorGroupService, QUERY_RESULTS_EDITOR_VIEW_STATE_PREFERENCE_KEY, 100);
 	}
 
 	public get input(): QueryResultsInput {

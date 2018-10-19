@@ -7,24 +7,36 @@ import 'vs/css!sql/parts/query/editor/media/queryEditor';
 
 import { QueryInput } from 'sql/parts/query/common/queryInput';
 import { QueryResultsEditor } from 'sql/parts/query/editor/queryResultsEditor';
-import { RunQueryAction } from 'sql/parts/query/execution/queryActions';
 import { QueryEditorActionBar } from 'sql/parts/query/editor/queryEditorActionBar';
 
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
 import { SplitView, Orientation, Sizing } from 'vs/base/browser/ui/splitview/splitview';
 import * as DOM from 'vs/base/browser/dom';
-import { EditorOptions, IEditorControl } from 'vs/workbench/common/editor';
+import { EditorOptions, IEditorControl, IEditorMemento } from 'vs/workbench/common/editor';
 import { CancellationToken } from 'vs/base/common/cancellation';
 import { TPromise } from 'vs/base/common/winjs.base';
-import { Emitter, Event } from 'vs/base/common/event';
+import { Emitter, Event, once } from 'vs/base/common/event';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { Registry } from 'vs/platform/registry/common/platform';
 import { IEditorRegistry, Extensions } from 'vs/workbench/browser/editor';
 import { $ } from 'vs/base/browser/builder';
+import { IStorageService } from 'vs/platform/storage/common/storage';
+import { IEditorGroupsService, IEditorGroup } from 'vs/workbench/services/group/common/editorGroupsService';
+import { UntitledEditorInput } from 'vs/workbench/common/editor/untitledEditorInput';
+import { ResourceEditorInput } from 'vs/workbench/common/editor/resourceEditorInput';
+import URI from 'vs/base/common/uri';
+import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
 
 const EditorRegistry = Registry.as<IEditorRegistry>(Extensions.Editors);
+
+export interface IQueryEditorViewState {
+	resultsEditorVisible: boolean;
+	textEditorHeight: number;
+}
+
+const QUERY_EDITOR_VIEW_STATE_PREFERENCE_KEY = 'queryEditorViewState';
 
 export class QueryEditor extends BaseEditor {
 	public static readonly ID: string = 'workbench.editor.queryEditor';
@@ -38,6 +50,7 @@ export class QueryEditor extends BaseEditor {
 	private resultsEditor: QueryResultsEditor;
 	private resultsEditorContainer: HTMLElement;
 	private taskbar: QueryEditorActionBar;
+	private editorMemento: IEditorMemento<IQueryEditorViewState>;
 
 	private readonly _onFocus: Emitter<void> = new Emitter<void>();
 	readonly onFocus: Event<void> = this._onFocus.event;
@@ -47,9 +60,13 @@ export class QueryEditor extends BaseEditor {
 	constructor(
 		@ITelemetryService telemetryService: ITelemetryService,
 		@IThemeService themeService: IThemeService,
-		@IInstantiationService private instantiationService: IInstantiationService
+		@IStorageService storageService: IStorageService,
+		@IInstantiationService private instantiationService: IInstantiationService,
+		@IEditorGroupsService protected editorGroupService: IEditorGroupsService
 	) {
 		super(QueryEditor.ID, telemetryService, themeService);
+
+		this.editorMemento = this.getEditorMemento<IQueryEditorViewState>(storageService, editorGroupService, QUERY_EDITOR_VIEW_STATE_PREFERENCE_KEY, 100);
 	}
 
 	public get input(): QueryInput {
@@ -84,6 +101,7 @@ export class QueryEditor extends BaseEditor {
 		this.resultsEditorContainer = DOM.$('.results-editor-container');
 		this.resultsEditor = this._register(this.instantiationService.createInstance(QueryResultsEditor));
 		this.resultsEditor.create(this.resultsEditorContainer);
+		this.resultsEditor.setVisible(this.isVisible(), this.group);
 		// (<CodeEditorWidget>this.resultsEditor.getControl()).onDidFocusEditorWidget(() => this.lastFocusedEditor = this.resultsEditor);
 
 		/*
@@ -109,7 +127,11 @@ export class QueryEditor extends BaseEditor {
 	}
 
 	public getControl(): IEditorControl {
-		return this.textEditor.getControl();
+		if (this.textEditor) {
+			return this.textEditor.getControl();
+		}
+
+		return undefined;
 	}
 
 	public layout(dimension: DOM.Dimension): void {
@@ -119,6 +141,10 @@ export class QueryEditor extends BaseEditor {
 	}
 
 	public setInput(input: QueryInput, options: EditorOptions, token: CancellationToken): Thenable<void> {
+
+		// Remember view settings if input changes
+		this.saveQueryEditorViewState(this.input);
+
 		const oldInput = this.input;
 		super.setInput(input, options, token);
 
@@ -139,6 +165,120 @@ export class QueryEditor extends BaseEditor {
 		]).then(() => undefined);
 	}
 
+	clearInput(): void {
+
+		// Keep editor view state in settings to restore when coming back
+		this.saveQueryEditorViewState(this.input);
+
+		if (this.textEditor) {
+			this.textEditor.clearInput();
+		}
+
+		if (this.resultsEditor) {
+			this.resultsEditor.clearInput();
+		}
+
+		super.clearInput();
+	}
+
+	shutdown() {
+		if (this.textEditor) {
+			this.textEditor.shutdown();
+		}
+
+		if (this.resultsEditor) {
+			this.resultsEditor.shutdown();
+		}
+
+		super.shutdown();
+	}
+
+	setOptions(options: EditorOptions): void {
+		if (this.textEditor) {
+			this.textEditor.setOptions(options);
+		}
+
+		if (this.resultsEditor) {
+			this.resultsEditor.setOptions(options);
+		}
+
+		super.setOptions(options);
+	}
+
+	protected setEditorVisible(visible: boolean, group: IEditorGroup): void {
+
+		// Pass on to Editor
+		if (this.textEditor) {
+			this.textEditor.setVisible(visible, group);
+		}
+
+		if (this.resultsEditor) {
+			this.resultsEditor.setVisible(visible, group);
+		}
+
+		super.setEditorVisible(visible, group);
+	}
+
+	private saveQueryEditorViewState(input: QueryInput): void {
+		if (!input || (!(input.text instanceof UntitledEditorInput) && !(input.text instanceof ResourceEditorInput))) {
+			return; // only enabled for untitled and resource inputs
+		}
+
+		const resource = input.getResource();
+
+		// Clear view state if input is disposed
+		if (input.isDisposed()) {
+			this.clearQueryEditorViewState([resource]);
+		}
+
+		// Otherwise save it
+		else {
+
+			const editorViewState = this.retrieveQueryEditorViewState(resource);
+			if (!editorViewState) {
+				return;
+			}
+
+			this.editorMemento.saveState(this.group, resource, editorViewState);
+
+			// Make sure to clean up when the input gets disposed
+			once(input.onDispose)(() => {
+				this.clearQueryEditorViewState([resource]);
+			});
+		}
+	}
+
+	protected retrieveQueryEditorViewState(resource: URI): IQueryEditorViewState {
+		/*
+		const control = this.getControl() as ICodeEditor;
+		const model = control.getModel();
+		if (!model) {
+			return null; // view state always needs a model
+		}
+
+		const modelUri = model.uri;
+		if (!modelUri) {
+			return null; // model URI is needed to make sure we save the view state correctly
+		}
+
+		if (modelUri.toString() !== resource.toString()) {
+			return null; // prevent saving view state for a model that is not the expected one
+		}
+
+		return control.saveViewState();
+		*/
+		return undefined;
+	}
+
+	/**
+	 * Clears the text editor view state for the given resources.
+	 */
+	protected clearQueryEditorViewState(resources: URI[]): void {
+		resources.forEach(resource => {
+			this.editorMemento.clearState(resource);
+		});
+	}
+
 	private createTextEditor() {
 		if (this.textEditor) {
 			this.textEditor.dispose();
@@ -153,7 +293,10 @@ export class QueryEditor extends BaseEditor {
 
 		this.textEditor = descriptor.instantiate(this.instantiationService);
 		this.textEditor.create(this.textEditorContainer);
+		this.textEditor.setVisible(this.isVisible(), this.group);
 		this.layout(this.dimension);
+
+		this.taskbar.model = this.textEditor.getControl() as ICodeEditor;
 	}
 
 	private removeResultsEditor() {

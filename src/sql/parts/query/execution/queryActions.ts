@@ -25,6 +25,7 @@ import {
 } from 'sql/parts/connection/common/connectionManagement';
 import { SelectBox } from 'sql/base/browser/ui/selectBox/selectBox';
 import { Dropdown } from 'sql/base/browser/ui/editableDropdown/dropdown';
+import { IRange } from 'vs/editor/common/core/range';
 
 export interface IQueryActionContext {
 	input: QueryInput;
@@ -45,10 +46,14 @@ export class RunQueryAction extends Action {
 		this.label = nls.localize('runQueryLabel', 'Run');
 	}
 
-	public run(context: IQueryActionContext): TPromise<void> {
+	public run(context: IQueryActionContext, selection?: IRange): TPromise<void> {
 		context.input.runQuery();
 		return TPromise.as(null);
 	}
+}
+
+export class RunQuerySelectionAction extends RunQueryAction {
+
 }
 
 /**
