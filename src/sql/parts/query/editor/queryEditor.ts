@@ -8,6 +8,7 @@ import 'vs/css!sql/parts/query/editor/media/queryEditor';
 import { QueryInput } from 'sql/parts/query/common/queryInput';
 import { QueryResultsEditor } from 'sql/parts/query/editor/queryResultsEditor';
 import { QueryEditorActionBar } from 'sql/parts/query/editor/queryEditorActionBar';
+import { QueryEditorWidget } from 'sql/parts/query/editor/queryEditorWidget';
 
 import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
 import { SplitView, Orientation, Sizing } from 'vs/base/browser/ui/splitview/splitview';
@@ -43,6 +44,8 @@ export class QueryEditor extends BaseEditor {
 
 	private dimension: DOM.Dimension = new DOM.Dimension(0, 0);
 
+	private _editor: QueryEditorWidget;
+
 	private splitview: SplitView;
 	// could be untitled or resource editor
 	private textEditor: BaseEditor;
@@ -76,11 +79,13 @@ export class QueryEditor extends BaseEditor {
 	protected createEditor(parent: HTMLElement): void {
 		DOM.addClass(parent, 'query-editor');
 
+		this._editor = new QueryEditorWidget();
+
 		let splitviewContainer = DOM.$('.query-editor-view');
 
 		let taskbarContainer = DOM.$('.query-editor-taskbar');
 		this.taskbar = this.instantiationService.createInstance(QueryEditorActionBar, taskbarContainer);
-
+		this.taskbar.editor = this.getControl() as ICodeEditor;
 		parent.appendChild(taskbarContainer);
 		parent.appendChild(splitviewContainer);
 
@@ -127,11 +132,7 @@ export class QueryEditor extends BaseEditor {
 	}
 
 	public getControl(): IEditorControl {
-		if (this.textEditor) {
-			return this.textEditor.getControl();
-		}
-
-		return undefined;
+		return this._editor;
 	}
 
 	public layout(dimension: DOM.Dimension): void {
@@ -293,10 +294,9 @@ export class QueryEditor extends BaseEditor {
 
 		this.textEditor = descriptor.instantiate(this.instantiationService);
 		this.textEditor.create(this.textEditorContainer);
+		this._editor.setCodeEditor(this.textEditor.getControl() as ICodeEditor);
 		this.textEditor.setVisible(this.isVisible(), this.group);
 		this.layout(this.dimension);
-
-		this.taskbar.model = this.textEditor.getControl() as ICodeEditor;
 	}
 
 	private removeResultsEditor() {

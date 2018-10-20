@@ -23,6 +23,7 @@ import { Event, Emitter } from 'vs/base/common/event';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { KeyCode } from 'vs/base/common/keyCodes';
 import { Tree } from 'vs/base/parts/tree/browser/treeImpl';
+import { attachListStyler, attachInputBoxStyler } from 'vs/platform/theme/common/styler';
 
 export interface IDropdownOptions extends IDropdownStyles {
 	/**
@@ -137,6 +138,8 @@ export class Dropdown extends Disposable {
 			ariaLabel: this._options.ariaLabel
 		});
 
+		attachInputBoxStyler(this._input, this._themeService);
+
 		this._register(DOM.addDisposableListener(this._input.inputElement, DOM.EventType.CLICK, () => {
 			this._showList();
 		}));
@@ -191,6 +194,8 @@ export class Dropdown extends Disposable {
 			renderer: this._renderer,
 			controller: this._controller
 		}, { paddingOnRow: false, indentPixels: 0, twistiePixels: 0 });
+
+		attachListStyler(this._tree, this._themeService);
 
 		this.values = this._options.values;
 

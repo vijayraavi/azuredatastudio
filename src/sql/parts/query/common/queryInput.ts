@@ -3,15 +3,16 @@
  *  Licensed under the Source EULA. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { EditorInput, ConfirmResult, EditorModel, Verbosity } from 'vs/workbench/common/editor';
+import { EditorInput, ConfirmResult, EditorModel, Verbosity, EncodingMode } from 'vs/workbench/common/editor';
 import { TPromise } from 'vs/base/common/winjs.base';
-
-import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
 import { Emitter, Event } from 'vs/base/common/event';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import URI from 'vs/base/common/uri';
 import { FileEditorInput } from 'vs/workbench/parts/files/common/editors/fileEditorInput';
 import { UntitledEditorInput } from 'vs/workbench/common/editor/untitledEditorInput';
+import { IRange } from 'vs/editor/common/core/range';
+
+import { QueryResultsInput } from 'sql/parts/query/common/queryResultsInput';
+import QueryRunner from 'sql/parts/query/execution/queryRunner';
 
 const MAX_SIZE = 13;
 
@@ -34,6 +35,8 @@ export class QueryInput extends EditorInput {
 	private _onQuery = new Emitter();
 	public readonly onQuery = this._onQuery.event;
 
+	private _runner: QueryRunner;
+
 	constructor(
 		private _text: FileEditorInput | UntitledEditorInput, private _results: QueryResultsInput
 	) {
@@ -51,6 +54,24 @@ export class QueryInput extends EditorInput {
 	public getTypeId(): string { return QueryInput.ID; }
 	public supportsSplitEditor(): boolean { return false; }
 
+	// Clean up functions
+	public dispose(): void {
+		// this._queryModelService.disposeQuery(this.uri);
+		this.text.dispose();
+		this.results.dispose();
+		super.dispose();
+	}
+
+	public get uri(): string {
+		return this.getResource().toString();
+	}
+
+	public close(): void {
+		this.text.close();
+		this.results.close();
+	}
+
+	// #region shell methods
 	/* Shell methods that are needed to map the uri of the resource */
 	public getTitle(verbosity: Verbosity) { return this.text.getTitle(verbosity); }
 	public save(): TPromise<boolean> { return this.text.save(); }
@@ -60,6 +81,11 @@ export class QueryInput extends EditorInput {
 	public getEncoding(): string {return this.text.getEncoding(); }
 	public resolve(): TPromise<EditorModel> { return this.text.resolve(); }
 	public getName(): string { return this.text.getName(); }
+
+	public setEncoding(encoding: string, mode: EncodingMode): void {
+		this.text.setEncoding(encoding, mode);
+	}
+
 
 	/* These methods are also shell methods, but they only exist on UntitledEditorInputs */
 	public get onDidModelChangeContent(): Event<void> {
@@ -82,26 +108,26 @@ export class QueryInput extends EditorInput {
 		}
 		return undefined;
 	}
-	/* End shell methods */
 
-	public runQuery() {
+	public get hasAssociatedFilePath(): boolean {
+		if (this.text instanceof UntitledEditorInput) {
+			return this.text.hasAssociatedFilePath;
+		}
+		return undefined;
+	}
+
+	// #endregion
+
+	public runQuery(selection?: IRange) {
 		this._onQuery.fire();
 	}
 
-	matches(otherInput: any): boolean {
-		if (super.matches(otherInput) === true) {
-			return true;
+
+	public matches(otherInput: any): boolean {
+		if (otherInput instanceof QueryInput) {
+			return this.text.matches(otherInput.text);
 		}
 
-		if (otherInput) {
-			if (!(otherInput instanceof QueryInput)) {
-				return false;
-			}
-
-			const otherDiffInput = <QueryInput>otherInput;
-			return this.text.matches(otherDiffInput.text);
-		}
-
-		return false;
+		return this.text.matches(otherInput);
 	}
 }

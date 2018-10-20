@@ -15,17 +15,18 @@ import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
 import { INotificationService } from 'vs/platform/notification/common/notification';
 import Severity from 'vs/base/common/severity';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { IRange } from 'vs/editor/common/core/range';
 
 import { QueryInput } from 'sql/parts/query/common/queryInput';
 import { EventEmitter } from 'sql/base/common/eventEmitter';
 import { attachEditableDropdownStyler, attachSelectBoxStyler } from 'sql/common/theme/styler';
 import {
 	IConnectionManagementService, IConnectionParams, INewConnectionParams,
-	ConnectionType
+	ConnectionType, IConnectableInput, RunQueryOnConnectionMode
 } from 'sql/parts/connection/common/connectionManagement';
 import { SelectBox } from 'sql/base/browser/ui/selectBox/selectBox';
 import { Dropdown } from 'sql/base/browser/ui/editableDropdown/dropdown';
-import { IRange } from 'vs/editor/common/core/range';
+import { ICapabilitiesService } from 'sql/services/capabilities/capabilitiesService';
 
 export interface IQueryActionContext {
 	input: QueryInput;
@@ -39,15 +40,14 @@ export class RunQueryAction extends Action {
 
 	public static EnabledClass = 'start';
 	public static ID = 'runQueryAction';
-	public static LABEL = 'Run';
+	public static LABEL = nls.localize('runQueryLabel', 'Run');
 
 	constructor() {
 		super(RunQueryAction.ID, RunQueryAction.LABEL, RunQueryAction.EnabledClass);
-		this.label = nls.localize('runQueryLabel', 'Run');
 	}
 
 	public run(context: IQueryActionContext, selection?: IRange): TPromise<void> {
-		context.input.runQuery();
+		context.input.runQuery(selection);
 		return TPromise.as(null);
 	}
 }
@@ -71,7 +71,8 @@ export class ToggleConnectDatabaseAction extends Action {
 	private _connected: boolean = false;
 
 	constructor(
-		@IConnectionManagementService private connectionManagementService: IConnectionManagementService
+		@IConnectionManagementService private connectionManagementService: IConnectionManagementService,
+		@ICapabilitiesService private capbilitiesService: ICapabilitiesService
 	) {
 		super(ToggleConnectDatabaseAction.ID, ToggleConnectDatabaseAction.ConnectLabel, ToggleConnectDatabaseAction.ConnectClass);
 	}
@@ -95,11 +96,31 @@ export class ToggleConnectDatabaseAction extends Action {
 		if (this.connected) {
 			// Call disconnectEditor regardless of the connection state and let the ConnectionManagementService
 			// determine if we need to disconnect, cancel an in-progress connection, or do nothing
-			this.connectionManagementService.disconnectEditor(context.input);
+			let params: IConnectableInput = {
+				uri: context.input.uri,
+				onConnectCanceled: undefined,
+				onConnectReject: undefined,
+				onConnectStart: undefined,
+				onConnectSuccess: undefined,
+				onDisconnect: () => {
+					this.connected = false;
+				}
+			};
+			this.connectionManagementService.disconnectEditor(params);
 		} else {
 			let params: INewConnectionParams = {
-				input: context.input,
-				connectionType: ConnectionType.editor
+				input: {
+					uri: context.input.uri,
+					onConnectCanceled: undefined,
+					onConnectReject: undefined,
+					onConnectStart: undefined,
+					onConnectSuccess: () => {
+						this.connected = true;
+					},
+					onDisconnect: undefined
+				},
+				connectionType: ConnectionType.editor,
+				runQueryOnCompletion: RunQueryOnConnectionMode.none
 			};
 			this.connectionManagementService.showConnectionDialog(params);
 		}
@@ -258,22 +279,22 @@ export class ListDatabasesActionItem extends EventEmitter implements IActionItem
 
 		this._connectionManagementService.changeDatabase(uri, dbName)
 			.then(
-			result => {
-				if (!result) {
+				result => {
+					if (!result) {
+						this.resetDatabaseName();
+						this._notificationService.notify({
+							severity: Severity.Error,
+							message: nls.localize('changeDatabase.failed', "Failed to change database")
+						});
+					}
+				},
+				error => {
 					this.resetDatabaseName();
 					this._notificationService.notify({
 						severity: Severity.Error,
-						message: nls.localize('changeDatabase.failed', "Failed to change database")
+						message: nls.localize('changeDatabase.failedWithError', "Failed to change database {0}", error)
 					});
-				}
-			},
-			error => {
-				this.resetDatabaseName();
-				this._notificationService.notify({
-					severity: Severity.Error,
-					message: nls.localize('changeDatabase.failedWithError', "Failed to change database {0}", error)
 				});
-			});
 	}
 
 	private getCurrentDatabaseName() {

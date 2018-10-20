@@ -54,8 +54,8 @@ export class QueryEditorActionBar extends Taskbar {
 		return TPromise.as(undefined);
 	}
 
-	public set model(model: ICodeEditor) {
-		this._context.editor = model;
+	public set editor(editor: ICodeEditor) {
+		this._context.editor = editor;
 		this.context = this._context;
 	}
 }
