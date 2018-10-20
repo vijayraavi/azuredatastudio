@@ -78,7 +78,7 @@ export class QueryInput extends EditorInput {
 	public isDirty(): boolean { return this.text.isDirty(); }
 	public confirmSave(): TPromise<ConfirmResult> { return this.text.confirmSave(); }
 	public getResource(): URI { return this.text.getResource(); }
-	public getEncoding(): string {return this.text.getEncoding(); }
+	public getEncoding(): string { return this.text.getEncoding(); }
 	public resolve(): TPromise<EditorModel> { return this.text.resolve(); }
 	public getName(): string { return this.text.getName(); }
 
